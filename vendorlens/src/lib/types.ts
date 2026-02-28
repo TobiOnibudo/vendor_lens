@@ -14,6 +14,7 @@ export interface Vendor {
   id: string;
   name: string;
   canonical_name: string | null;
+  aliases: string[] | null;
   category: string | null;
   description: string | null;
   department: string | null;

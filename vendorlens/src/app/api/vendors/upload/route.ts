@@ -107,18 +107,30 @@ export async function POST(request: NextRequest) {
     for (const [name, data] of vendorSpend) {
       const newDepartments = Array.from(data.departments);
 
-      // Fetch the existing vendor so we can merge departments instead of overwriting
+      // Fetch existing vendor to merge departments, aliases, and preserve owner
       const { data: existing } = await supabase
         .from("vendors")
-        .select("id, department, owner_id")
+        .select("id, department, owner_id, aliases")
         .eq("name", name)
         .maybeSingle();
 
-      // Merge incoming departments with any previously stored ones
+      // Merge departments
       const existingDepts = existing?.department
         ? existing.department.split(",").map((d: string) => d.trim()).filter(Boolean)
         : [];
       const mergedDepts = [...new Set([...existingDepts, ...newDepartments])].sort();
+
+      // Merge aliases: the canonical name itself is excluded, keep all non-canonical variants
+      const incomingVariants = (clusters[name] as string[] | undefined) ?? [];
+      const newAliases = incomingVariants.filter(
+        (v) => v.toLowerCase() !== name.toLowerCase()
+      );
+      const existingAliases: string[] = Array.isArray(existing?.aliases)
+        ? (existing.aliases as string[])
+        : [];
+      const mergedAliases = [
+        ...new Set([...existingAliases, ...newAliases]),
+      ].sort();
 
       // Only set owner if the vendor has no owner yet
       const ownerId = existing?.owner_id ?? uploaderId;
@@ -151,6 +163,20 @@ export async function POST(request: NextRequest) {
 
       if (vendor) {
         insertedVendors.push(vendor);
+
+        // Save aliases separately so a missing column never blocks the main upsert
+        if (mergedAliases.length > 0) {
+          const { error: aliasError } = await supabase
+            .from("vendors")
+            .update({ aliases: mergedAliases })
+            .eq("id", vendor.id);
+          if (aliasError) {
+            // PGRST204 means the column doesn't exist yet — safe to ignore until migrated
+            if (aliasError.code !== "PGRST204") {
+              console.error(`[vendors/upload] Failed to save aliases for "${name}":`, aliasError.message);
+            }
+          }
+        }
 
         for (const row of data.rows) {
           const { data: existingSpend } = await supabase

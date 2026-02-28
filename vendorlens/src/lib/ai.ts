@@ -10,24 +10,33 @@ export async function getEmbedding(text: string): Promise<number[]> {
   return result.embeddings![0].values!;
 }
 
-export async function extractContractData(text: string) {
-  const result = await ai.models.generateContent({
-    model: "gemini-embedding-001",
-    contents: `You are a contract analysis expert. Extract structured data from contract text.
+export async function extractContractData(
+  source: string | { data: string; mimeType: string }
+) {
+  const prompt = `You are a contract analysis expert. Extract structured data from this contract document.
 Return a JSON object with these fields:
-- renewal_date: ISO date string or null
+- vendor_name: the name of the vendor/supplier party (not the customer), as it appears in the contract, or null
+- renewal_date: ISO date string (YYYY-MM-DD) or null
 - auto_renew: boolean or null
 - notice_period_days: number or null
-- contract_value: number or null
+- contract_value: number (annual, in USD) or null
 - pricing_escalation: string description or null
 - summary: 2-3 sentence summary of the contract
-- key_terms: array of important terms/clauses
+- key_terms: array of important terms/clauses as short strings
 
-Only include data you can confidently extract. Use null for uncertain fields.
+Only include data you can confidently extract. Use null for uncertain fields.`;
 
-Extract contract metadata from this text:
+  const contents =
+    typeof source === "string"
+      ? `${prompt}\n\nExtract from this text:\n\n${source}`
+      : [
+          { text: prompt },
+          { inlineData: { mimeType: source.mimeType, data: source.data } },
+        ];
 
-${text}`,
+  const result = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents,
     config: { responseMimeType: "application/json" },
   });
 

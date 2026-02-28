@@ -32,29 +32,63 @@ export async function POST(request: NextRequest) {
       // Storage upload failed — continue without file URL
     }
 
-    // Extract text from PDF (simplified — uses the raw text)
+    // Pass the PDF directly to Gemini as base64 so it can natively read the document
     const arrayBuffer = await file.arrayBuffer();
-    const textDecoder = new TextDecoder("utf-8");
-    let rawText = textDecoder.decode(arrayBuffer);
-
-    // Basic PDF text extraction — strip binary content
-    rawText = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim();
-
-    if (rawText.length < 50) {
-      rawText = `Contract document: ${file.name}. Unable to extract full text from PDF binary. Please review manually.`;
-    }
-
-    // Truncate for API limits
-    const contractText = rawText.slice(0, 8000);
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const mimeType = file.type || "application/pdf";
 
     // AI extraction
-    const extracted = await extractContractData(contractText);
+    const extracted = await extractContractData({ data: base64, mimeType });
+
+    // Auto-link vendor: if no manual selection, try to match the extracted vendor name
+    // against existing vendors (name, canonical_name, aliases)
+    let resolvedVendorId: string | null = vendorId || null;
+    let autoLinked = false;
+
+    if (!resolvedVendorId && extracted.vendor_name) {
+      const needle = (extracted.vendor_name as string).toLowerCase().trim();
+
+      const { data: allVendors } = await supabase
+        .from("vendors")
+        .select("id, name, canonical_name, aliases")
+        .eq("is_active", true);
+
+      if (allVendors) {
+        for (const v of allVendors) {
+          const candidates: string[] = [
+            v.name,
+            v.canonical_name,
+            ...(Array.isArray(v.aliases) ? v.aliases : []),
+          ]
+            .filter(Boolean)
+            .map((s: string) => s.toLowerCase().trim());
+
+          // Exact match first
+          if (candidates.some((c) => c === needle)) {
+            resolvedVendorId = v.id;
+            autoLinked = true;
+            break;
+          }
+
+          // Partial match: extracted name contains or is contained by a candidate
+          if (
+            candidates.some(
+              (c) => needle.includes(c) || c.includes(needle)
+            )
+          ) {
+            resolvedVendorId = v.id;
+            autoLinked = true;
+            break;
+          }
+        }
+      }
+    }
 
     // Store contract
     const { data: contract, error } = await supabase
       .from("contracts")
       .insert({
-        vendor_id: vendorId || null,
+        vendor_id: resolvedVendorId,
         file_name: file.name,
         file_url: fileUrl,
         renewal_date: extracted.renewal_date || null,
@@ -76,6 +110,8 @@ export async function POST(request: NextRequest) {
       success: true,
       contract,
       extracted,
+      autoLinked,
+      detectedVendorName: extracted.vendor_name ?? null,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Upload failed";

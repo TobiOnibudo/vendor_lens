@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -153,13 +154,50 @@ export default function SearchPage() {
                         : "bg-white border border-slate-200 shadow-sm"
                     }`}
                   >
-                    <div
-                      className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                        msg.role === "assistant" ? "text-slate-700" : ""
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+                    {msg.role === "user" ? (
+                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                    ) : (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => (
+                            <p className="text-sm leading-relaxed text-slate-700 mb-2 last:mb-0">{children}</p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-slate-900">{children}</strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-slate-600">{children}</em>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="mt-1 mb-2 space-y-1 pl-1">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="mt-1 mb-2 space-y-1 pl-1 list-decimal list-inside">{children}</ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-sm text-slate-700 flex gap-2">
+                              <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
+                              <span>{children}</span>
+                            </li>
+                          ),
+                          h1: ({ children }) => (
+                            <h1 className="text-base font-bold text-slate-900 mb-1 mt-2">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-sm font-bold text-slate-900 mb-1 mt-2">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-sm font-semibold text-slate-800 mb-1 mt-2">{children}</h3>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-slate-100 text-slate-800 rounded px-1 py-0.5 text-xs font-mono">{children}</code>
+                          ),
+                          hr: () => <hr className="my-2 border-slate-200" />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    )}
 
                     {msg.sources && (
                       <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
