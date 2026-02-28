@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { clusterVendorNames, getEmbedding } from "@/lib/ai";
 
 interface ParsedVendorRow {
@@ -19,8 +19,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
 
+    // Service client bypasses RLS for all writes (must be created first)
     const supabase = await createServiceClient();
-    console.log("[vendors/upload] Supabase client created, rows:", rows.length);
+
+    // Resolve the authenticated user who is performing the upload
+    const authClient = await createServerSupabaseClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    let uploaderId: string | null = null;
+    let uploaderName: string | null = null;
+    if (user) {
+      uploaderId = user.id;
+      // Ensure a profile row exists — the signup trigger may not have fired
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile) {
+        uploaderName = profile.full_name || user.email || null;
+      } else {
+        // Profile missing — create it now so the FK on vendors.owner_id is satisfied
+        const fallbackName =
+          (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "Unknown";
+        await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            email: user.email ?? "",
+            full_name: fallbackName,
+            company_domain: user.email ? user.email.split("@")[1] : "",
+          },
+          { onConflict: "id" }
+        );
+        uploaderName = fallbackName;
+      }
+    }
+    console.log("[vendors/upload] Supabase client created, rows:", rows.length, "uploader:", uploaderName);
 
     const vendorNames = [...new Set(rows.map((r) => r.vendor_name))];
     console.log("[vendors/upload] Calling Gemini to cluster", vendorNames.length, "vendor names");
@@ -71,7 +105,25 @@ export async function POST(request: NextRequest) {
     }
 
     for (const [name, data] of vendorSpend) {
-      const departments = Array.from(data.departments);
+      const newDepartments = Array.from(data.departments);
+
+      // Fetch the existing vendor so we can merge departments instead of overwriting
+      const { data: existing } = await supabase
+        .from("vendors")
+        .select("id, department, owner_id")
+        .eq("name", name)
+        .maybeSingle();
+
+      // Merge incoming departments with any previously stored ones
+      const existingDepts = existing?.department
+        ? existing.department.split(",").map((d: string) => d.trim()).filter(Boolean)
+        : [];
+      const mergedDepts = [...new Set([...existingDepts, ...newDepartments])].sort();
+
+      // Only set owner if the vendor has no owner yet
+      const ownerId = existing?.owner_id ?? uploaderId;
+      const ownerName = existing?.owner_id ? undefined : uploaderName;
+
       const { data: vendor, error } = await supabase
         .from("vendors")
         .upsert(
@@ -80,7 +132,9 @@ export async function POST(request: NextRequest) {
             canonical_name: name,
             category: data.category || null,
             description: data.description || null,
-            department: departments[0] || null,
+            department: mergedDepts.join(", ") || null,
+            owner_id: ownerId,
+            ...(ownerName !== undefined && { owner_name: ownerName }),
             total_spend: data.total,
             annual_spend: data.total,
             is_active: true,
@@ -99,17 +153,28 @@ export async function POST(request: NextRequest) {
         insertedVendors.push(vendor);
 
         for (const row of data.rows) {
-          await supabase.from("spend_records").insert({
-            vendor_id: vendor.id,
-            amount: row.amount,
-            department: row.department,
-            period: row.period || new Date().getFullYear().toString(),
-            description: row.description || null,
-          });
+          const { data: existingSpend } = await supabase
+            .from("spend_records")
+            .select("id")
+            .eq("vendor_id", vendor.id)
+            .eq("department", row.department)
+            .eq("period", row.period || new Date().getFullYear().toString())
+            .eq("amount", row.amount)
+            .maybeSingle();
+
+          if (!existingSpend) {
+            await supabase.from("spend_records").insert({
+              vendor_id: vendor.id,
+              amount: row.amount,
+              department: row.department,
+              period: row.period || new Date().getFullYear().toString(),
+              description: row.description || null,
+            });
+          }
         }
 
         try {
-          const embeddingText = `Vendor: ${name}. Category: ${data.category || "Unknown"}. Description: ${data.description || name}. Department: ${departments.join(", ")}. Annual spend: $${data.total}`;
+          const embeddingText = `Vendor: ${name}. Category: ${data.category || "Unknown"}. Description: ${data.description || name}. Department: ${mergedDepts.join(", ")}. Annual spend: $${data.total}`;
           const embedding = await getEmbedding(embeddingText);
 
           await supabase.from("vendor_embeddings").insert({

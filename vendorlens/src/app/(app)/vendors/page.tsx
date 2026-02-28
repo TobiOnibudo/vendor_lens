@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,20 @@ import {
   Filter,
   Download,
   Upload,
+  X,
+  Globe,
+  DollarSign,
+  Users,
+  Tag,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Vendor } from "@/lib/types";
+
+interface DepartmentSpend {
+  department: string;
+  total: number;
+}
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -35,6 +45,10 @@ export default function VendorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [departments, setDepartments] = useState<string[]>([]);
+  const [vendorDepts, setVendorDepts] = useState<Map<string, string[]>>(new Map());
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [deptSpend, setDeptSpend] = useState<DepartmentSpend[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
 
   useEffect(() => {
     loadVendors();
@@ -44,21 +58,71 @@ export default function VendorsPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { data } = await supabase
-        .from("vendors")
-        .select("*")
-        .eq("is_active", true)
-        .order("annual_spend", { ascending: false });
 
-      setVendors((data || []) as Vendor[]);
-      const depts = [
-        ...new Set((data || []).map((v) => v.department).filter(Boolean)),
-      ] as string[];
-      setDepartments(depts);
+      const [{ data: vendorData }, { data: spendData }] = await Promise.all([
+        supabase
+          .from("vendors")
+          .select("*")
+          .eq("is_active", true)
+          .order("annual_spend", { ascending: false }),
+        supabase
+          .from("spend_records")
+          .select("vendor_id, department"),
+      ]);
+
+      // Build vendor_id → sorted unique departments from spend_records (ground truth)
+      const deptMap = new Map<string, Set<string>>();
+      for (const row of spendData || []) {
+        if (!deptMap.has(row.vendor_id)) deptMap.set(row.vendor_id, new Set());
+        deptMap.get(row.vendor_id)!.add(row.department);
+      }
+      const sortedDeptMap = new Map<string, string[]>();
+      for (const [vid, set] of deptMap) {
+        sortedDeptMap.set(vid, [...set].sort());
+      }
+      setVendorDepts(sortedDeptMap);
+
+      setVendors((vendorData || []) as Vendor[]);
+
+      // All unique departments across all vendors for the filter dropdown
+      const allDepts = [...new Set([...deptMap.values()].flatMap((s) => [...s]))].sort();
+      setDepartments(allDepts);
     } catch {
       // Graceful degradation
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function openVendorDetail(vendor: Vendor) {
+    setSelectedVendor(vendor);
+    setDeptSpend([]);
+    setLoadingDepts(true);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("spend_records")
+        .select("department, amount")
+        .eq("vendor_id", vendor.id);
+
+      if (data && data.length > 0) {
+        const byDept = data.reduce<Record<string, number>>((acc, row) => {
+          acc[row.department] = (acc[row.department] || 0) + row.amount;
+          return acc;
+        }, {});
+        const sorted = Object.entries(byDept)
+          .map(([department, total]) => ({ department, total }))
+          .sort((a, b) => b.total - a.total);
+        setDeptSpend(sorted);
+      } else if (vendor.department) {
+        setDeptSpend([{ department: vendor.department, total: vendor.annual_spend }]);
+      }
+    } catch {
+      if (vendor.department) {
+        setDeptSpend([{ department: vendor.department, total: vendor.annual_spend }]);
+      }
+    } finally {
+      setLoadingDepts(false);
     }
   }
 
@@ -67,7 +131,8 @@ export default function VendorsPage() {
       !searchQuery ||
       v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDept = !departmentFilter || v.department === departmentFilter;
+    const depts = vendorDepts.get(v.id) ?? [];
+    const matchesDept = !departmentFilter || depts.includes(departmentFilter);
     return matchesSearch && matchesDept;
   });
 
@@ -183,14 +248,18 @@ export default function VendorsPage() {
                   <TableRow>
                     <TableHead>Vendor</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Department</TableHead>
+                    <TableHead>Department(s)</TableHead>
                     <TableHead className="text-right">Annual Spend</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredVendors.map((vendor) => (
-                    <TableRow key={vendor.id}>
+                    <TableRow
+                      key={vendor.id}
+                      className="cursor-pointer hover:bg-slate-50 transition-colors"
+                      onClick={() => openVendorDetail(vendor)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-500">
@@ -216,8 +285,12 @@ export default function VendorsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {vendor.department ? (
-                          <Badge variant="outline">{vendor.department}</Badge>
+                        {(vendorDepts.get(vendor.id) ?? []).length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {(vendorDepts.get(vendor.id) ?? []).map((d) => (
+                              <Badge key={d} variant="outline">{d}</Badge>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
@@ -240,6 +313,169 @@ export default function VendorsPage() {
           )}
         </Card>
       </div>
+
+      {/* Vendor Detail Slide-Over */}
+      {selectedVendor && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setSelectedVendor(null)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Panel Header */}
+            <div className="flex items-start justify-between p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center text-lg font-bold text-slate-600">
+                  {selectedVendor.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    {selectedVendor.name}
+                  </h2>
+                  {selectedVendor.canonical_name &&
+                    selectedVendor.canonical_name !== selectedVendor.name && (
+                      <p className="text-xs text-slate-400">
+                        Also known as: {selectedVendor.canonical_name}
+                      </p>
+                    )}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedVendor(null)}
+                className="rounded-md p-1.5 hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Panel Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Status + Category badges */}
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={selectedVendor.is_active ? "success" : "secondary"}>
+                  {selectedVendor.is_active ? "Active" : "Inactive"}
+                </Badge>
+                {selectedVendor.category && (
+                  <Badge variant="secondary">{selectedVendor.category}</Badge>
+                )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  <Tag className="h-3.5 w-3.5" />
+                  Description
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {selectedVendor.description
+                    ? selectedVendor.description
+                    : "No description available for this vendor."}
+                </p>
+              </div>
+
+              {/* Website */}
+              {selectedVendor.website && (
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                    <Globe className="h-3.5 w-3.5" />
+                    Website
+                  </div>
+                  <a
+                    href={
+                      selectedVendor.website.startsWith("http")
+                        ? selectedVendor.website
+                        : `https://${selectedVendor.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {selectedVendor.website}
+                  </a>
+                </div>
+              )}
+
+              {/* Annual Spend */}
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Annual Spend
+                </div>
+                <p className="text-2xl font-bold text-slate-900">
+                  {formatCurrency(selectedVendor.annual_spend)}
+                </p>
+              </div>
+
+              {/* Departments */}
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                  <Users className="h-3.5 w-3.5" />
+                  Department(s) Using This Vendor
+                </div>
+                {(vendorDepts.get(selectedVendor.id) ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {(vendorDepts.get(selectedVendor.id) ?? []).map((d) => (
+                      <Badge key={d} variant="outline">{d}</Badge>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-slate-400 mb-2">Spend breakdown by department:</p>
+                {loadingDepts ? (
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : deptSpend.length > 0 ? (
+                  <div className="space-y-2">
+                    {deptSpend.map(({ department, total }) => {
+                      const pct =
+                        selectedVendor.annual_spend > 0
+                          ? Math.round((total / selectedVendor.annual_spend) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={department}
+                          className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium text-slate-800">
+                              {department}
+                            </span>
+                            <span className="text-sm font-semibold text-slate-900">
+                              {formatCurrency(total)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">{pct}% of spend</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    No department spend data found.
+                  </p>
+                )}
+              </div>
+
+              {/* Owner */}
+              {selectedVendor.owner_name && (
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">
+                    Owner: <span className="text-slate-600 font-medium">{selectedVendor.owner_name}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
