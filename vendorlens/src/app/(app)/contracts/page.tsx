@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/table";
 import {
   FileText,
-  Upload,
-  Loader2,
+  Plus,
   CalendarClock,
   AlertTriangle,
   CheckCircle2,
@@ -44,11 +43,10 @@ import { toast } from "sonner";
 import type { Contract, Vendor } from "@/lib/types";
 
 export default function ContractsPage() {
+  const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [viewContract, setViewContract] = useState<Contract | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -83,56 +81,6 @@ export default function ContractsPage() {
       setLoading(false);
     }
   }
-
-  const onDrop = useCallback(
-    async (files: File[]) => {
-      if (files.length === 0) return;
-
-      setUploading(true);
-      let successCount = 0;
-
-      for (const file of files) {
-        try {
-          const formData = new FormData();
-          formData.append("file", file);
-          if (selectedVendor) {
-            formData.append("vendor_id", selectedVendor);
-          }
-
-          const res = await fetch("/api/contracts/upload", {
-            method: "POST",
-            body: formData,
-          });
-
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error);
-          successCount++;
-          if (data.autoLinked && data.detectedVendorName) {
-            toast.info(`Auto-linked to vendor: ${data.detectedVendorName}`);
-          }
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "Upload failed";
-          toast.error(`Failed to upload ${file.name}: ${message}`);
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(`${successCount} contract(s) uploaded and analyzed!`);
-        loadData();
-      }
-      setUploading(false);
-    },
-    [selectedVendor]
-  );
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "application/pdf": [".pdf"],
-      "text/plain": [".txt"],
-    },
-    disabled: uploading,
-  });
 
   function openEditMode(contract: Contract) {
     setConfirmDelete(false);
@@ -171,7 +119,7 @@ export default function ContractsPage() {
     }
   }
 
-  async function confirmContract(contract: Contract, overrides?: Partial<Contract>) {
+  async function saveContract(contract: Contract, overrides?: Partial<Contract>) {
     const updates = overrides ?? {
       vendor_id: contract.vendor_id,
       renewal_date: contract.renewal_date,
@@ -181,7 +129,6 @@ export default function ContractsPage() {
       pricing_escalation: contract.pricing_escalation,
       summary: contract.summary,
     };
-    // Normalise empty string vendor_id to undefined (omit from update)
     if ("vendor_id" in updates && !updates.vendor_id) {
       updates.vendor_id = undefined;
     }
@@ -234,13 +181,13 @@ export default function ContractsPage() {
         {/* Renewal Summary Bars */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { icon: AlertTriangle, count: renewalBuckets.critical.length, label: "Renewals within 30 days" },
-            { icon: Clock, count: renewalBuckets.warning.length, label: "Renewals within 31–60 days" },
-            { icon: CalendarClock, count: renewalBuckets.upcoming.length, label: "Renewals within 61–90 days" },
-          ].map(({ icon: Icon, count, label }) => (
+            { icon: AlertTriangle, count: renewalBuckets.critical.length, label: "Renewals within 30 days", iconBg: "bg-red-50", iconColor: "text-red-400" },
+            { icon: Clock, count: renewalBuckets.warning.length, label: "Renewals within 31–60 days", iconBg: "bg-amber-50", iconColor: "text-amber-400" },
+            { icon: CalendarClock, count: renewalBuckets.upcoming.length, label: "Renewals within 61–90 days", iconBg: "bg-slate-100/80", iconColor: "text-slate-400" },
+          ].map(({ icon: Icon, count, label, iconBg, iconColor }) => (
             <div key={label} className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100/80 flex items-center justify-center flex-shrink-0">
-                <Icon className="h-5 w-5 text-slate-400" />
+              <div className={`h-10 w-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`h-5 w-5 ${iconColor}`} />
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{count}</p>
@@ -250,61 +197,30 @@ export default function ContractsPage() {
           ))}
         </div>
 
-        {/* Upload Section */}
-        <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <Upload className="h-4 w-4 text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-800">Upload Contracts</h2>
-          </div>
-          <div className="flex gap-4 mb-4">
-            <Select
-              value={selectedVendor}
-              onChange={(e) => setSelectedVendor(e.target.value)}
-              className="w-64"
-            >
-              <option value="">Link to vendor (optional)</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
-            </Select>
-          </div>
-
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-              isDragActive ? "border-slate-400 bg-slate-50" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
-            } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <input {...getInputProps()} />
-            {uploading ? (
-              <div className="flex flex-col items-center">
-                <Loader2 className="h-10 w-10 text-slate-400 animate-spin mb-3" />
-                <p className="text-sm text-slate-500">Uploading and analyzing with AI...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <FileText className="h-10 w-10 text-slate-300 mb-3" />
-                <p className="text-sm font-medium text-slate-700 mb-1">Drop contract PDFs here</p>
-                <p className="text-xs text-slate-400">AI will extract renewal dates, auto-renew clauses, values &amp; more</p>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Contract List */}
         <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-semibold text-slate-800">All Contracts</h2>
-            <Select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-48"
-            >
-              <option value="">All Statuses</option>
-              <option value="pending_review">Pending Review</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="expired">Expired</option>
-            </Select>
+            <div className="flex items-center gap-3">
+              <Select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-44"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="expired">Expired</option>
+              </Select>
+              <Button
+                onClick={() => router.push("/contracts/new")}
+                size="sm"
+                className="rounded-xl gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Add Contract
+              </Button>
+            </div>
           </div>
 
           {loading ? (
@@ -316,7 +232,16 @@ export default function ContractsPage() {
           ) : filteredContracts.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">No contracts found. Upload PDF contracts above.</p>
+              <p className="text-sm text-slate-400 mb-4">No contracts found.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl gap-1.5"
+                onClick={() => router.push("/contracts/new")}
+              >
+                <Plus className="h-4 w-4" />
+                Add your first contract
+              </Button>
             </div>
           ) : (
             <Table>
@@ -369,9 +294,9 @@ export default function ContractsPage() {
                       </TableCell>
                       <TableCell>
                         {contract.auto_renew === true ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">Yes</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700">Yes</span>
                         ) : contract.auto_renew === false ? (
-                          <span className="text-xs text-slate-400">No</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">No</span>
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}
@@ -388,7 +313,7 @@ export default function ContractsPage() {
                         </span>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -416,190 +341,115 @@ export default function ContractsPage() {
         </div>
       </div>
 
-      {/* Contract Detail Dialog */}
+      {/* Contract Detail / Edit Dialog */}
       <Dialog open={!!viewContract} onOpenChange={closeDialog}>
         <DialogContent onClose={closeDialog}>
           {viewContract && (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-blue-500" />
-                  {editMode ? "Edit Contract Data" : "AI-Extracted Contract Data"}
+                  <Sparkles className="h-5 w-5 text-slate-400" />
+                  {editMode ? "Edit Contract" : "Contract Details"}
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4 mt-2">
                 <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs font-medium text-slate-500 mb-1">File</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Contract</p>
                   <p className="text-sm font-medium">{viewContract.file_name}</p>
                 </div>
 
                 {editMode ? (
-                  /* ── Edit form ── */
                   <>
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-medium text-slate-500 block mb-1">
-                          Vendor
-                        </label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1">Vendor</label>
                         <Select
                           value={editValues.vendor_id ?? ""}
-                          onChange={(e) =>
-                            setEditValues((v) => ({
-                              ...v,
-                              vendor_id: e.target.value || undefined,
-                            }))
-                          }
+                          onChange={(e) => setEditValues((v) => ({ ...v, vendor_id: e.target.value || undefined }))}
                         >
                           <option value="">Unlinked</option>
                           {vendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
+                            <option key={v.id} value={v.id}>{v.name}</option>
                           ))}
                         </Select>
                       </div>
 
                       <div>
-                        <label className="text-xs font-medium text-slate-500 block mb-1">
-                          AI Summary
-                        </label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1">Notes / Summary</label>
                         <textarea
-                          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
                           rows={3}
                           value={editValues.summary ?? ""}
-                          onChange={(e) =>
-                            setEditValues((v) => ({ ...v, summary: e.target.value }))
-                          }
+                          onChange={(e) => setEditValues((v) => ({ ...v, summary: e.target.value }))}
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs font-medium text-slate-500 block mb-1">
-                            Renewal Date
-                          </label>
+                          <label className="text-xs font-medium text-slate-500 block mb-1">Renewal / Expiry Date</label>
                           <Input
                             type="date"
-                            value={
-                              editValues.renewal_date
-                                ? editValues.renewal_date.slice(0, 10)
-                                : ""
-                            }
-                            onChange={(e) =>
-                              setEditValues((v) => ({
-                                ...v,
-                                renewal_date: e.target.value || null,
-                              }))
-                            }
+                            value={editValues.renewal_date ? editValues.renewal_date.slice(0, 10) : ""}
+                            onChange={(e) => setEditValues((v) => ({ ...v, renewal_date: e.target.value || null }))}
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-slate-500 block mb-1">
-                            Contract Value (USD)
-                          </label>
+                          <label className="text-xs font-medium text-slate-500 block mb-1">Contract Value (USD)</label>
                           <Input
                             type="number"
                             min={0}
                             placeholder="e.g. 49000"
                             value={editValues.contract_value ?? ""}
-                            onChange={(e) =>
-                              setEditValues((v) => ({
-                                ...v,
-                                contract_value: e.target.value
-                                  ? Number(e.target.value)
-                                  : null,
-                              }))
-                            }
+                            onChange={(e) => setEditValues((v) => ({ ...v, contract_value: e.target.value ? Number(e.target.value) : null }))}
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-slate-500 block mb-1">
-                            Auto-Renew
-                          </label>
+                          <label className="text-xs font-medium text-slate-500 block mb-1">Auto-Renew</label>
                           <Select
-                            value={
-                              editValues.auto_renew === true
-                                ? "true"
-                                : editValues.auto_renew === false
-                                ? "false"
-                                : ""
-                            }
-                            onChange={(e) =>
-                              setEditValues((v) => ({
-                                ...v,
-                                auto_renew:
-                                  e.target.value === "true"
-                                    ? true
-                                    : e.target.value === "false"
-                                    ? false
-                                    : null,
-                              }))
-                            }
+                            value={editValues.auto_renew === true ? "true" : editValues.auto_renew === false ? "false" : ""}
+                            onChange={(e) => setEditValues((v) => ({
+                              ...v,
+                              auto_renew: e.target.value === "true" ? true : e.target.value === "false" ? false : null,
+                            }))}
                           >
-                            <option value="">Unknown</option>
+                  
                             <option value="true">Yes</option>
                             <option value="false">No</option>
                           </Select>
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-slate-500 block mb-1">
-                            Notice Period (days)
-                          </label>
+                          <label className="text-xs font-medium text-slate-500 block mb-1">Notice Period (days)</label>
                           <Input
                             type="number"
                             min={0}
                             placeholder="e.g. 60"
                             value={editValues.notice_period_days ?? ""}
-                            onChange={(e) =>
-                              setEditValues((v) => ({
-                                ...v,
-                                notice_period_days: e.target.value
-                                  ? Number(e.target.value)
-                                  : null,
-                              }))
-                            }
+                            onChange={(e) => setEditValues((v) => ({ ...v, notice_period_days: e.target.value ? Number(e.target.value) : null }))}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-xs font-medium text-slate-500 block mb-1">
-                          Pricing Escalation
-                        </label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1">Pricing Escalation</label>
                         <Input
                           placeholder="e.g. 5% annual increase"
                           value={editValues.pricing_escalation ?? ""}
-                          onChange={(e) =>
-                            setEditValues((v) => ({
-                              ...v,
-                              pricing_escalation: e.target.value || null,
-                            }))
-                          }
+                          onChange={(e) => setEditValues((v) => ({ ...v, pricing_escalation: e.target.value || null }))}
                         />
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                      <Button
-                        onClick={() => confirmContract(viewContract, editValues)}
-                        className="flex-1"
-                      >
+                      <Button onClick={() => saveContract(viewContract, editValues)} className="flex-1">
                         <CheckCircle2 className="h-4 w-4 mr-1" />
                         {viewContract.status === "confirmed" ? "Save Changes" : "Save & Confirm"}
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditMode(false)}
-                      >
-                        Back
-                      </Button>
+                      <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
                     </div>
                   </>
                 ) : (
-                  /* ── Read-only view ── */
                   <>
-                    {/* Vendor row — always visible */}
                     <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between">
                       <div>
                         <p className="text-xs font-medium text-slate-500">Vendor</p>
@@ -621,7 +471,7 @@ export default function ContractsPage() {
 
                     {viewContract.summary && (
                       <div className="p-3 bg-slate-50 rounded-lg">
-                        <p className="text-xs font-medium text-slate-500 mb-1">AI Summary</p>
+                        <p className="text-xs font-medium text-slate-500 mb-1">Summary</p>
                         <p className="text-sm text-slate-700">{viewContract.summary}</p>
                       </div>
                     )}
@@ -630,35 +480,25 @@ export default function ContractsPage() {
                       <div className="p-3 bg-slate-50 rounded-lg">
                         <p className="text-xs font-medium text-slate-500">Renewal Date</p>
                         <p className="text-sm font-semibold">
-                          {viewContract.renewal_date
-                            ? formatDate(viewContract.renewal_date)
-                            : "Not found"}
+                          {viewContract.renewal_date ? formatDate(viewContract.renewal_date) : "Not set"}
                         </p>
                       </div>
                       <div className="p-3 bg-slate-50 rounded-lg">
                         <p className="text-xs font-medium text-slate-500">Contract Value</p>
                         <p className="text-sm font-semibold">
-                          {viewContract.contract_value
-                            ? formatCurrency(viewContract.contract_value)
-                            : "Not found"}
+                          {viewContract.contract_value ? formatCurrency(viewContract.contract_value) : "Not set"}
                         </p>
                       </div>
                       <div className="p-3 bg-slate-50 rounded-lg">
                         <p className="text-xs font-medium text-slate-500">Auto-Renew</p>
                         <p className="text-sm font-semibold">
-                          {viewContract.auto_renew === true
-                            ? "Yes"
-                            : viewContract.auto_renew === false
-                            ? "No"
-                            : "Unknown"}
+                          {viewContract.auto_renew === true ? "Yes" : viewContract.auto_renew === false ? "No" : "Unknown"}
                         </p>
                       </div>
                       <div className="p-3 bg-slate-50 rounded-lg">
                         <p className="text-xs font-medium text-slate-500">Notice Period</p>
                         <p className="text-sm font-semibold">
-                          {viewContract.notice_period_days
-                            ? `${viewContract.notice_period_days} days`
-                            : "Not found"}
+                          {viewContract.notice_period_days ? `${viewContract.notice_period_days} days` : "Not set"}
                         </p>
                       </div>
                     </div>
@@ -670,63 +510,43 @@ export default function ContractsPage() {
                       </div>
                     )}
 
-                    {viewContract.key_terms &&
-                      (viewContract.key_terms as string[]).length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 mb-2">
-                            Key Terms
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {(viewContract.key_terms as string[]).map((term, i) => (
-                              <Badge key={i} variant="secondary">
-                                {term}
-                              </Badge>
-                            ))}
-                          </div>
+                    {viewContract.key_terms && (viewContract.key_terms as string[]).length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 mb-2">Key Terms</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(viewContract.key_terms as string[]).map((term, i) => (
+                            <span key={i} className="px-2.5 py-0.5 rounded-lg text-xs bg-slate-100 text-slate-600 border border-slate-200">
+                              {term}
+                            </span>
+                          ))}
                         </div>
-                      )}
+                      </div>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                       {viewContract.status === "pending_review" && (
                         <>
-                          <Button
-                            onClick={() => confirmContract(viewContract)}
-                            className="flex-1"
-                          >
+                          <Button onClick={() => saveContract(viewContract)} className="flex-1">
                             <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Confirm Extracted Data
+                            Confirm Data
                           </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => openEditMode(viewContract)}
-                          >
+                          <Button variant="outline" onClick={() => openEditMode(viewContract)}>
                             Edit First
                           </Button>
                         </>
                       )}
                       {viewContract.status === "confirmed" && (
-                        <Button
-                          variant="outline"
-                          onClick={() => openEditMode(viewContract)}
-                          className="flex-1"
-                        >
-                          Edit
+                        <Button variant="outline" onClick={() => openEditMode(viewContract)} className="flex-1">
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Edit Contract
                         </Button>
                       )}
                       {confirmDelete ? (
                         <>
-                          <Button
-                            variant="destructive"
-                            onClick={() => deleteContract(viewContract)}
-                          >
+                          <Button variant="destructive" onClick={() => deleteContract(viewContract)}>
                             Confirm Delete
                           </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() => setConfirmDelete(false)}
-                          >
-                            Cancel
-                          </Button>
+                          <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
                         </>
                       ) : (
                         <Button
