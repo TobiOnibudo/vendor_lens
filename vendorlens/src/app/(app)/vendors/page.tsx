@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CsvUpload } from "@/components/vendors/csv-upload";
+import Link from "next/link";
 import {
   Building2,
   Search,
@@ -30,16 +32,10 @@ import {
   Filter,
   Download,
   Upload,
-  X,
-  Globe,
-  DollarSign,
-  Users,
-  Tag,
   Pencil,
   Trash2,
   AlertTriangle,
   Loader2,
-  GitMerge,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -70,6 +66,7 @@ const EMPTY_FORM: VendorForm = {
 };
 
 export default function VendorsPage() {
+  const router = useRouter();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
@@ -78,11 +75,6 @@ export default function VendorsPage() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [vendorDepts, setVendorDepts] = useState<Map<string, string[]>>(new Map());
 
-  // Detail panel
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [deptSpend, setDeptSpend] = useState<DepartmentSpend[]>([]);
-  const [loadingDepts, setLoadingDepts] = useState(false);
-
   // Add / Edit modal
   const [showForm, setShowForm] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
@@ -90,7 +82,7 @@ export default function VendorsPage() {
   const [saving, setSaving] = useState(false);
 
   // Delete confirmation
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -131,39 +123,6 @@ export default function VendorsPage() {
       // Graceful degradation
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function openVendorDetail(vendor: Vendor) {
-    setSelectedVendor(vendor);
-    setConfirmDelete(false);
-    setDeptSpend([]);
-    setLoadingDepts(true);
-    try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("spend_records")
-        .select("department, amount")
-        .eq("vendor_id", vendor.id);
-
-      if (data && data.length > 0) {
-        const byDept = data.reduce<Record<string, number>>((acc, row) => {
-          acc[row.department] = (acc[row.department] || 0) + row.amount;
-          return acc;
-        }, {});
-        const sorted = Object.entries(byDept)
-          .map(([department, total]) => ({ department, total }))
-          .sort((a, b) => b.total - a.total);
-        setDeptSpend(sorted);
-      } else if (vendor.department) {
-        setDeptSpend([{ department: vendor.department, total: vendor.annual_spend }]);
-      }
-    } catch {
-      if (vendor.department) {
-        setDeptSpend([{ department: vendor.department, total: vendor.annual_spend }]);
-      }
-    } finally {
-      setLoadingDepts(false);
     }
   }
 
@@ -250,7 +209,6 @@ export default function VendorsPage() {
       }
 
       setShowForm(false);
-      setSelectedVendor(null);
       await loadVendors();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Save failed";
@@ -261,19 +219,18 @@ export default function VendorsPage() {
   }
 
   async function handleDeleteVendor() {
-    if (!selectedVendor) return;
+    if (!vendorToDelete) return;
     setDeleting(true);
     try {
       const supabase = createClient();
       const { error } = await supabase
         .from("vendors")
         .update({ is_active: false })
-        .eq("id", selectedVendor.id);
+        .eq("id", vendorToDelete.id);
 
       if (error) throw error;
-      toast.success(`${selectedVendor.name} removed`);
-      setSelectedVendor(null);
-      setConfirmDelete(false);
+      toast.success(`${vendorToDelete.name} removed`);
+      setVendorToDelete(null);
       await loadVendors();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Delete failed";
@@ -409,72 +366,85 @@ export default function VendorsPage() {
           ) : (
             <div className="border-t border-slate-100">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Department(s)</TableHead>
-                    <TableHead className="text-right">Annual Spend</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredVendors.map((vendor) => (
-                    <TableRow
-                      key={vendor.id}
-                      className="cursor-pointer hover:bg-slate-50 transition-colors"
-                      onClick={() => openVendorDetail(vendor)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-500">
-                            {vendor.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-900">
-                              {vendor.name}
-                            </p>
-                            {vendor.website && (
-                              <p className="text-xs text-slate-400">
-                                {vendor.website}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {vendor.category ? (
-                          <Badge variant="secondary">{vendor.category}</Badge>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(vendorDepts.get(vendor.id) ?? []).length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {(vendorDepts.get(vendor.id) ?? []).map((d) => (
-                              <Badge key={d} variant="outline">
-                                {d}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(vendor.annual_spend)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={vendor.is_active ? "success" : "secondary"}
-                        >
-                          {vendor.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Department(s)</TableHead>
+                      <TableHead className="text-right">Annual Spend</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-20"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVendors.map((vendor) => (
+                      <TableRow
+                        key={vendor.id}
+                        className="cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => router.push(`/vendors/${vendor.id}`)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-500">
+                              {vendor.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-900">{vendor.name}</p>
+                              {vendor.website && (
+                                <p className="text-xs text-slate-400">{vendor.website}</p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {vendor.category ? (
+                            <Badge variant="secondary">{vendor.category}</Badge>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(vendorDepts.get(vendor.id) ?? []).length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {(vendorDepts.get(vendor.id) ?? []).map((d) => (
+                                <Badge key={d} variant="outline">{d}</Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(vendor.annual_spend)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={vendor.is_active ? "success" : "secondary"}>
+                            {vendor.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600"
+                              onClick={() => openEditForm(vendor)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                              onClick={() => setVendorToDelete(vendor)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
               </Table>
             </div>
           )}
@@ -617,273 +587,32 @@ export default function VendorsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Vendor Detail Slide-Over ───────────────────────────── */}
-      {selectedVendor && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/30 z-40"
-            onClick={() => {
-              setSelectedVendor(null);
-              setConfirmDelete(false);
-            }}
-          />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            {/* Panel Header */}
-            <div className="flex items-start justify-between p-6 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center text-lg font-bold text-slate-600">
-                  {selectedVendor.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    {selectedVendor.name}
-                  </h2>
-                  {selectedVendor.canonical_name &&
-                    selectedVendor.canonical_name !== selectedVendor.name && (
-                      <p className="text-xs text-slate-400">
-                        Also known as: {selectedVendor.canonical_name}
-                      </p>
-                    )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditForm(selectedVendor);
-                  }}
-                  className="rounded-md p-1.5 hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
-                  title="Edit vendor"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDelete(true);
-                  }}
-                  className="rounded-md p-1.5 hover:bg-red-50 transition-colors text-slate-400 hover:text-red-600"
-                  title="Delete vendor"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedVendor(null);
-                    setConfirmDelete(false);
-                  }}
-                  className="rounded-md p-1.5 hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 ml-1"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Delete confirmation banner */}
-            {confirmDelete && (
-              <div className="mx-4 mt-4 rounded-lg bg-red-50 border border-red-200 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">
-                      Remove {selectedVendor.name}?
-                    </p>
-                    <p className="text-xs text-red-600 mt-0.5">
-                      This will hide the vendor from your list. Spend records
-                      are preserved.
-                    </p>
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        onClick={handleDeleteVendor}
-                        disabled={deleting}
-                        className="bg-red-600 hover:bg-red-700 text-white h-7 px-3 text-xs"
-                      >
-                        {deleting ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          "Yes, remove"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfirmDelete(false)}
-                        disabled={deleting}
-                        className="h-7 px-3 text-xs"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Panel Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Status + Category badges */}
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant={selectedVendor.is_active ? "success" : "secondary"}
-                >
-                  {selectedVendor.is_active ? "Active" : "Inactive"}
-                </Badge>
-                {selectedVendor.category && (
-                  <Badge variant="secondary">{selectedVendor.category}</Badge>
-                )}
-              </div>
-
-              {/* Aliases / Also known as */}
-              {selectedVendor.aliases && selectedVendor.aliases.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                    <GitMerge className="h-3.5 w-3.5" />
-                    Also Known As
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedVendor.aliases.map((alias) => (
-                      <span
-                        key={alias}
-                        className="inline-flex items-center rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-800"
-                      >
-                        {alias}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  <Tag className="h-3.5 w-3.5" />
-                  Description
-                </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  {selectedVendor.description
-                    ? selectedVendor.description
-                    : "No description available for this vendor."}
-                </p>
-              </div>
-
-              {/* Website */}
-              {selectedVendor.website && (
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                    <Globe className="h-3.5 w-3.5" />
-                    Website
-                  </div>
-                  <a
-                    href={
-                      selectedVendor.website.startsWith("http")
-                        ? selectedVendor.website
-                        : `https://${selectedVendor.website}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    {selectedVendor.website}
-                  </a>
-                </div>
-              )}
-
-              {/* Annual Spend */}
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  <DollarSign className="h-3.5 w-3.5" />
-                  Annual Spend
-                </div>
-                <p className="text-2xl font-bold text-slate-900">
-                  {formatCurrency(selectedVendor.annual_spend)}
-                </p>
-              </div>
-
-              {/* Departments */}
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                  <Users className="h-3.5 w-3.5" />
-                  Department(s) Using This Vendor
-                </div>
-                {(vendorDepts.get(selectedVendor.id) ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {(vendorDepts.get(selectedVendor.id) ?? []).map((d) => (
-                      <Badge key={d} variant="outline">
-                        {d}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-slate-400 mb-2">
-                  Spend breakdown by department:
-                </p>
-                {loadingDepts ? (
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-10 bg-slate-100 rounded-lg animate-pulse"
-                      />
-                    ))}
-                  </div>
-                ) : deptSpend.length > 0 ? (
-                  <div className="space-y-2">
-                    {deptSpend.map(({ department, total }) => {
-                      const pct =
-                        selectedVendor.annual_spend > 0
-                          ? Math.round(
-                              (total / selectedVendor.annual_spend) * 100
-                            )
-                          : 0;
-                      return (
-                        <div
-                          key={department}
-                          className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium text-slate-800">
-                              {department}
-                            </span>
-                            <span className="text-sm font-semibold text-slate-900">
-                              {formatCurrency(total)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 rounded-full"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {pct}% of spend
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400">
-                    No department spend data found.
-                  </p>
-                )}
-              </div>
-
-              {/* Owner */}
-              {selectedVendor.owner_name && (
-                <div className="pt-2 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">
-                    Owner:{" "}
-                    <span className="text-slate-600 font-medium">
-                      {selectedVendor.owner_name}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!vendorToDelete} onOpenChange={(o) => { if (!o && !deleting) setVendorToDelete(null); }}>
+        <DialogContent onClose={() => !deleting && setVendorToDelete(null)}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Remove {vendorToDelete?.name}?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500 mt-1">
+            This will hide the vendor from your list. Spend records and contracts are preserved.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Button
+              onClick={handleDeleteVendor}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white flex-1"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Yes, remove"}
+            </Button>
+            <Button variant="outline" onClick={() => setVendorToDelete(null)} disabled={deleting}>
+              Cancel
+            </Button>
           </div>
-        </>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

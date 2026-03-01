@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -108,8 +107,8 @@ export default function SearchPage() {
         <div className="flex-1 overflow-y-auto mb-4 space-y-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center mb-6">
-                <Sparkles className="h-10 w-10 text-white" />
+              <div className="h-16 w-16 rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm flex items-center justify-center mb-6">
+                <Sparkles className="h-8 w-8 text-slate-400" />
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-3">
                 Ask VendorLens AI
@@ -143,15 +142,15 @@ export default function SearchPage() {
                   }`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Bot className="h-4 w-4 text-white" />
+                    <div className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur-sm border border-white/70 shadow-sm flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="h-4 w-4 text-slate-500" />
                     </div>
                   )}
                   <div
                     className={`max-w-2xl rounded-2xl px-4 py-3 ${
                       msg.role === "user"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 shadow-sm"
+                        ? "bg-slate-800 text-white"
+                        : "bg-white/80 backdrop-blur-md border border-white/70 shadow-sm"
                     }`}
                   >
                     {msg.role === "user" ? (
@@ -228,17 +227,13 @@ export default function SearchPage() {
 
               {loading && (
                 <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-4 w-4 text-white" />
+                  <div className="h-8 w-8 rounded-lg bg-white/80 backdrop-blur-sm border border-white/70 shadow-sm flex items-center justify-center flex-shrink-0">
+                    <Bot className="h-4 w-4 text-slate-500" />
                   </div>
-                  <Card className="max-w-md">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-                      <span className="text-sm text-slate-500">
-                        Searching your vendor data...
-                      </span>
-                    </CardContent>
-                  </Card>
+                  <div className="max-w-md rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm px-4 py-3 flex items-center gap-3">
+                    <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
+                    <span className="text-sm text-slate-400">Searching your vendor data...</span>
+                  </div>
                 </div>
               )}
 
@@ -248,7 +243,7 @@ export default function SearchPage() {
         </div>
 
         {/* Input Area */}
-        <div className="sticky bottom-0 bg-slate-50 pt-2">
+        <div className="sticky bottom-0 bg-transparent pt-2">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -256,7 +251,7 @@ export default function SearchPage() {
             }}
             className="relative"
           >
-            <div className="flex items-center gap-2 bg-white rounded-2xl border border-slate-200 shadow-lg px-4 py-2 focus-within:ring-2 focus-within:ring-blue-400 focus-within:ring-offset-2 transition-all">
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md rounded-2xl border border-white/70 shadow-md px-4 py-2 focus-within:ring-2 focus-within:ring-slate-300 focus-within:ring-offset-2 transition-all">
               <Search className="h-5 w-5 text-slate-400 flex-shrink-0" />
               <input
                 ref={inputRef}

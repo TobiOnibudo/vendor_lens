@@ -46,7 +46,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between px-4 h-16 border-b border-slate-800">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-sm font-bold">
+            <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-sm font-bold text-white">
               VL
             </div>
             <span className="text-base font-semibold tracking-tight">VendorLens</span>
@@ -54,7 +54,7 @@ export function Sidebar() {
         )}
         {collapsed && (
           <Link href="/dashboard" className="mx-auto">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-sm font-bold">
+            <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-sm font-bold text-white">
               VL
             </div>
           </Link>

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,108 +230,71 @@ export default function ContractsPage() {
         description="Upload, analyze, and track contract renewals"
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-5">
         {/* Renewal Summary Bars */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-red-200 bg-red-50/50">
-            <CardContent className="p-4 flex items-center gap-3">
-              <AlertTriangle className="h-8 w-8 text-red-500" />
-              <div>
-                <p className="text-2xl font-bold text-red-900">
-                  {renewalBuckets.critical.length}
-                </p>
-                <p className="text-xs text-red-600">Renewals within 30 days</p>
+          {[
+            { icon: AlertTriangle, count: renewalBuckets.critical.length, label: "Renewals within 30 days" },
+            { icon: Clock, count: renewalBuckets.warning.length, label: "Renewals within 31–60 days" },
+            { icon: CalendarClock, count: renewalBuckets.upcoming.length, label: "Renewals within 61–90 days" },
+          ].map(({ icon: Icon, count, label }) => (
+            <div key={label} className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-slate-100/80 flex items-center justify-center flex-shrink-0">
+                <Icon className="h-5 w-5 text-slate-400" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Clock className="h-8 w-8 text-amber-500" />
               <div>
-                <p className="text-2xl font-bold text-amber-900">
-                  {renewalBuckets.warning.length}
-                </p>
-                <p className="text-xs text-amber-600">
-                  Renewals within 31–60 days
-                </p>
+                <p className="text-2xl font-bold text-slate-900">{count}</p>
+                <p className="text-xs text-slate-400">{label}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border-blue-200 bg-blue-50/50">
-            <CardContent className="p-4 flex items-center gap-3">
-              <CalendarClock className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold text-blue-900">
-                  {renewalBuckets.upcoming.length}
-                </p>
-                <p className="text-xs text-blue-600">
-                  Renewals within 61–90 days
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
 
         {/* Upload Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5 text-blue-500" />
-              Upload Contracts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 mb-4">
-              <Select
-                value={selectedVendor}
-                onChange={(e) => setSelectedVendor(e.target.value)}
-                className="w-64"
-              >
-                <option value="">Link to vendor (optional)</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                isDragActive
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-slate-200 hover:border-slate-300"
-              } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+        <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Upload className="h-4 w-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-800">Upload Contracts</h2>
+          </div>
+          <div className="flex gap-4 mb-4">
+            <Select
+              value={selectedVendor}
+              onChange={(e) => setSelectedVendor(e.target.value)}
+              className="w-64"
             >
-              <input {...getInputProps()} />
-              {uploading ? (
-                <div className="flex flex-col items-center">
-                  <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-3" />
-                  <p className="text-sm text-slate-500">
-                    Uploading and analyzing with AI...
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <FileText className="h-10 w-10 text-slate-400 mb-3" />
-                  <p className="text-sm font-medium text-slate-700 mb-1">
-                    Drop contract PDFs here
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    AI will extract renewal dates, auto-renew clauses, values &amp;
-                    more
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              <option value="">Link to vendor (optional)</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </Select>
+          </div>
+
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+              isDragActive ? "border-slate-400 bg-slate-50" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+            } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            <input {...getInputProps()} />
+            {uploading ? (
+              <div className="flex flex-col items-center">
+                <Loader2 className="h-10 w-10 text-slate-400 animate-spin mb-3" />
+                <p className="text-sm text-slate-500">Uploading and analyzing with AI...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center">
+                <FileText className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm font-medium text-slate-700 mb-1">Drop contract PDFs here</p>
+                <p className="text-xs text-slate-400">AI will extract renewal dates, auto-renew clauses, values &amp; more</p>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Contract List */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>All Contracts</CardTitle>
+        <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-slate-800">All Contracts</h2>
             <Select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -343,149 +305,115 @@ export default function ContractsPage() {
               <option value="confirmed">Confirmed</option>
               <option value="expired">Expired</option>
             </Select>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="animate-pulse space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-14 bg-slate-100 rounded" />
-                ))}
-              </div>
-            ) : filteredContracts.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-500">
-                  No contracts found. Upload PDF contracts above.
-                </p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contract</TableHead>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Renewal</TableHead>
-                    <TableHead>Auto-Renew</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-20"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContracts.map((contract) => {
-                    const days = contract.renewal_date
-                      ? daysUntil(contract.renewal_date)
-                      : null;
-                    const urgency = days !== null ? getRenewalUrgency(days) : null;
+          </div>
 
-                    const urgencyBadge: Record<string, "destructive" | "warning" | "info" | "success"> = {
-                      critical: "destructive",
-                      warning: "warning",
-                      upcoming: "info",
-                      safe: "success",
-                    };
+          {loading ? (
+            <div className="animate-pulse space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-14 bg-slate-100/60 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredContracts.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">No contracts found. Upload PDF contracts above.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Contract</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Renewal</TableHead>
+                  <TableHead>Auto-Renew</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-20"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredContracts.map((contract) => {
+                  const days = contract.renewal_date ? daysUntil(contract.renewal_date) : null;
+                  const urgency = days !== null ? getRenewalUrgency(days) : null;
+                  const isUrgent = urgency === "critical" || urgency === "warning";
 
-                    return (
-                      <TableRow
-                        key={contract.id}
-                        className="cursor-pointer hover:bg-slate-50 group"
-                        onClick={() => setViewContract(contract)}
-                      >
-                        <TableCell>
+                  return (
+                    <TableRow
+                      key={contract.id}
+                      className="cursor-pointer hover:bg-slate-50/60 group"
+                      onClick={() => setViewContract(contract)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-slate-300" />
+                          <span className="font-medium text-sm text-slate-800">{contract.file_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-600">{contract.vendor_name}</TableCell>
+                      <TableCell className="font-medium text-sm text-slate-800">
+                        {contract.contract_value ? formatCurrency(contract.contract_value) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {contract.renewal_date ? (
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-slate-400" />
-                            <span className="font-medium text-sm">
-                              {contract.file_name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {contract.vendor_name}
-                        </TableCell>
-                        <TableCell className="font-semibold text-sm">
-                          {contract.contract_value
-                            ? formatCurrency(contract.contract_value)
-                            : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {contract.renewal_date ? (
-                            <div>
-                              <span className="text-sm">
-                                {formatDate(contract.renewal_date)}
+                            <span className="text-sm text-slate-600">{formatDate(contract.renewal_date)}</span>
+                            {days !== null && (
+                              <span className={`text-xs font-medium tabular-nums ${isUrgent ? "text-slate-800" : "text-slate-400"}`}>
+                                {days}d
                               </span>
-                              {urgency && days !== null && (
-                                <Badge
-                                  variant={urgencyBadge[urgency]}
-                                  className="ml-2"
-                                >
-                                  {days}d
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {contract.auto_renew === true ? (
-                            <Badge variant="warning">Yes</Badge>
-                          ) : contract.auto_renew === false ? (
-                            <Badge variant="secondary">No</Badge>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              contract.status === "confirmed"
-                                ? "success"
-                                : contract.status === "expired"
-                                ? "destructive"
-                                : "warning"
-                            }
-                          >
-                            {contract.status === "pending_review"
-                              ? "Pending Review"
-                              : contract.status === "confirmed"
-                              ? "Confirmed"
-                              : "Expired"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-right"
-                        >
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600"
-                              onClick={() => {
-                                setViewContract(contract);
-                                openEditMode(contract);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
-                              onClick={() => deleteContract(contract)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            )}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {contract.auto_renew === true ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">Yes</span>
+                        ) : contract.auto_renew === false ? (
+                          <span className="text-xs text-slate-400">No</span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+                          contract.status === "confirmed"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : contract.status === "expired"
+                            ? "bg-slate-100 text-slate-500"
+                            : "bg-amber-50 text-amber-700"
+                        }`}>
+                          {contract.status === "pending_review" ? "Pending" : contract.status === "confirmed" ? "Confirmed" : "Expired"}
+                        </span>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600"
+                            onClick={() => { setViewContract(contract); openEditMode(contract); }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                            onClick={() => deleteContract(contract)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
 
       {/* Contract Detail Dialog */}
@@ -692,11 +620,9 @@ export default function ContractsPage() {
                     </div>
 
                     {viewContract.summary && (
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs font-medium text-blue-600 mb-1">
-                          AI Summary
-                        </p>
-                        <p className="text-sm text-blue-900">{viewContract.summary}</p>
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs font-medium text-slate-500 mb-1">AI Summary</p>
+                        <p className="text-sm text-slate-700">{viewContract.summary}</p>
                       </div>
                     )}
 
@@ -738,13 +664,9 @@ export default function ContractsPage() {
                     </div>
 
                     {viewContract.pricing_escalation && (
-                      <div className="p-3 bg-amber-50 rounded-lg">
-                        <p className="text-xs font-medium text-amber-600 mb-1">
-                          Pricing Escalation
-                        </p>
-                        <p className="text-sm text-amber-900">
-                          {viewContract.pricing_escalation}
-                        </p>
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs font-medium text-slate-500 mb-1">Pricing Escalation</p>
+                        <p className="text-sm text-slate-700">{viewContract.pricing_escalation}</p>
                       </div>
                     )}
 
@@ -810,7 +732,7 @@ export default function ContractsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 ml-auto"
+                          className="text-slate-400 hover:text-slate-600 ml-auto"
                           onClick={() => setConfirmDelete(true)}
                         >
                           <Trash2 className="h-4 w-4" />
