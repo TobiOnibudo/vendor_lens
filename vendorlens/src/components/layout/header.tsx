@@ -16,6 +16,7 @@ interface Notification {
   title: string;
   body: string;
   time: string;
+  href?: string;
   read: boolean;
 }
 
@@ -135,7 +136,13 @@ export function Header({ title, description }: HeaderProps) {
                         key={n.id}
                         className={`relative flex gap-3 px-4 py-3 transition-colors ${
                           n.read ? "opacity-60" : ""
-                        }`}
+                        } ${n.href ? "cursor-pointer hover:bg-slate-50" : ""}`}
+                        onClick={() => {
+                          if (n.href) {
+                            router.push(n.href);
+                            setOpen(false);
+                          }
+                        }}
                       >
                         <div className={`mt-0.5 h-8 w-8 flex-shrink-0 rounded-lg border flex items-center justify-center ${notificationColors[n.type]}`}>
                           {notificationIcons[n.type]}

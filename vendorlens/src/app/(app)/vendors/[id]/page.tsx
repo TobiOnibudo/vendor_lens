@@ -24,13 +24,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import type { Vendor, Contract, AccessRequest } from "@/lib/types";
+import { VendorOwnerSelect } from "@/components/vendors/vendor-owner-select";
+import type { Vendor, Contract, AccessRequest, UserProfile } from "@/lib/types";
 
 interface DeptSpend { department: string; total: number; }
 
 interface VendorForm {
   name: string; category: string; description: string;
   website: string; annual_spend: string; department: string;
+  owner_id: string;
 }
 
 export default function VendorDetailPage() {
@@ -45,20 +47,32 @@ export default function VendorDetailPage() {
 
   // Edit dialog
   const [showEdit, setShowEdit] = useState(false);
-  const [form, setForm] = useState<VendorForm>({ name: "", category: "", description: "", website: "", annual_spend: "", department: "" });
+  const [form, setForm] = useState<VendorForm>({ name: "", category: "", description: "", website: "", annual_spend: "", department: "", owner_id: "" });
   const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => { if (id) loadAll(); }, [id]);
 
   async function loadAll() {
     try {
       const supabase = createClient();
-      const [vendorRes, contractRes, accessRes, spendRes] = await Promise.all([
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const [vendorRes, contractRes, accessRes, spendRes, profileRes] = await Promise.all([
         supabase.from("vendors").select("*").eq("id", id).single(),
         supabase.from("contracts").select("*").eq("vendor_id", id).order("renewal_date", { ascending: true }),
         supabase.from("access_requests").select("*").eq("vendor_id", id).order("created_at", { ascending: false }),
         supabase.from("spend_records").select("department, amount").eq("vendor_id", id),
+        user
+          ? supabase.from("profiles").select("*").eq("id", user.id).single()
+          : Promise.resolve({ data: null }),
       ]);
+
+      if (user) setUserId(user.id);
+      if (profileRes.data) setProfile(profileRes.data as UserProfile);
 
       if (vendorRes.data) setVendor(vendorRes.data);
       setContracts(contractRes.data || []);
@@ -89,8 +103,14 @@ export default function VendorDetailPage() {
       website: vendor.website ?? "",
       annual_spend: vendor.annual_spend ? String(vendor.annual_spend) : "",
       department: vendor.department ?? "",
+      owner_id: vendor.owner_id ?? "",
     });
     setShowEdit(true);
+  }
+
+  function canChangeOwner() {
+    if (!vendor || !userId) return false;
+    return profile?.role === "admin" || vendor.owner_id === userId;
   }
 
   async function handleSave() {
@@ -111,6 +131,20 @@ export default function VendorDetailPage() {
       }).eq("id", vendor.id);
 
       if (error) throw error;
+
+      const ownerChanged = form.owner_id !== (vendor.owner_id ?? "");
+      if (ownerChanged && canChangeOwner()) {
+        const ownerRes = await fetch(`/api/vendors/${vendor.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ owner_id: form.owner_id || null }),
+        });
+        if (!ownerRes.ok) {
+          const data = await ownerRes.json();
+          throw new Error(data.error || "Failed to update owner");
+        }
+      }
+
       toast.success("Vendor updated");
       setShowEdit(false);
       loadAll();
@@ -378,7 +412,12 @@ export default function VendorDetailPage() {
                     <div key={r.id} className="flex items-center justify-between">
                       <div className="min-w-0">
                         <p className="text-sm text-slate-700 truncate">{r.requester_name || "Unknown"}</p>
-                        <p className="text-xs text-slate-400">{formatDate(r.created_at)}</p>
+                        <p className="text-xs text-slate-400">
+                          {formatDate(r.created_at)}
+                          {r.approver_name && (
+                            <span> · Approver: {r.approver_name}</span>
+                          )}
+                        </p>
                       </div>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 ml-2 ${
                         r.status === "approved" ? "bg-emerald-50 text-emerald-700"
@@ -432,6 +471,15 @@ export default function VendorDetailPage() {
               <label className="block text-xs font-medium text-slate-600 mb-1.5">Description</label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="What does this vendor provide?" className="min-h-[72px]" />
             </div>
+            {canChangeOwner() && (
+              <VendorOwnerSelect
+                vendorId={vendor.id}
+                value={form.owner_id}
+                selectedName={vendor.owner_name ?? undefined}
+                onChange={(ownerId) => setForm((f) => ({ ...f, owner_id: ownerId }))}
+                disabled={saving}
+              />
+            )}
             <div className="flex gap-3 pt-1">
               <Button onClick={handleSave} disabled={saving} className="flex-1">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

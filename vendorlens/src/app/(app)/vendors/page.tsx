@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CsvUpload } from "@/components/vendors/csv-upload";
+import { VendorOwnerSelect } from "@/components/vendors/vendor-owner-select";
 import Link from "next/link";
 import {
   Building2,
@@ -40,7 +41,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import type { Vendor } from "@/lib/types";
+import type { UserProfile, Vendor } from "@/lib/types";
 
 interface DepartmentSpend {
   department: string;
@@ -54,6 +55,7 @@ interface VendorForm {
   website: string;
   annual_spend: string;
   department: string;
+  owner_id: string;
 }
 
 const EMPTY_FORM: VendorForm = {
@@ -63,6 +65,7 @@ const EMPTY_FORM: VendorForm = {
   website: "",
   annual_spend: "",
   department: "",
+  owner_id: "",
 };
 
 export default function VendorsPage() {
@@ -84,6 +87,8 @@ export default function VendorsPage() {
   // Delete confirmation
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadVendors();
@@ -93,15 +98,25 @@ export default function VendorsPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const [{ data: vendorData }, { data: spendData }] = await Promise.all([
+      const [{ data: vendorData }, { data: spendData }, profileRes] =
+        await Promise.all([
         supabase
           .from("vendors")
           .select("*")
           .eq("is_active", true)
           .order("annual_spend", { ascending: false }),
         supabase.from("spend_records").select("vendor_id, department"),
+        user
+          ? supabase.from("profiles").select("*").eq("id", user.id).single()
+          : Promise.resolve({ data: null }),
       ]);
+
+      if (user) setUserId(user.id);
+      if (profileRes.data) setProfile(profileRes.data as UserProfile);
 
       const deptMap = new Map<string, Set<string>>();
       for (const row of spendData || []) {
@@ -141,8 +156,14 @@ export default function VendorsPage() {
       website: vendor.website ?? "",
       annual_spend: vendor.annual_spend ? String(vendor.annual_spend) : "",
       department: (vendorDepts.get(vendor.id) ?? []).join(", "),
+      owner_id: vendor.owner_id ?? "",
     });
     setShowForm(true);
+  }
+
+  function canChangeOwner(vendor: Vendor | null) {
+    if (!vendor || !userId) return false;
+    return profile?.role === "admin" || vendor.owner_id === userId;
   }
 
   async function handleSaveVendor() {
@@ -174,6 +195,23 @@ export default function VendorsPage() {
           .eq("id", editingVendor.id);
 
         if (error) throw error;
+
+        const ownerChanged =
+          form.owner_id !== (editingVendor.owner_id ?? "");
+        if (ownerChanged && canChangeOwner(editingVendor)) {
+          const ownerRes = await fetch(`/api/vendors/${editingVendor.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              owner_id: form.owner_id || null,
+            }),
+          });
+          if (!ownerRes.ok) {
+            const data = await ownerRes.json();
+            throw new Error(data.error || "Failed to update owner");
+          }
+        }
+
         toast.success("Vendor updated");
       } else {
         // Insert new vendor
@@ -545,6 +583,18 @@ export default function VendorsPage() {
                 }
               />
             </div>
+
+            {editingVendor && canChangeOwner(editingVendor) && (
+              <VendorOwnerSelect
+                vendorId={editingVendor.id}
+                value={form.owner_id}
+                selectedName={editingVendor.owner_name ?? undefined}
+                onChange={(ownerId) =>
+                  setForm((f) => ({ ...f, owner_id: ownerId }))
+                }
+                disabled={saving}
+              />
+            )}
 
             {/* Description */}
             <div>

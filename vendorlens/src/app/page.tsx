@@ -5,9 +5,9 @@ import {
   Search,
   Copy,
   ArrowRight,
-  Shield,
-  Zap,
+  Upload,
   Eye,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,32 +16,47 @@ const features = [
     icon: Building2,
     title: "Vendor Visibility",
     description:
-      "Centralize all vendor data. Upload spend CSV files, auto-normalize names with AI, and see every dollar across departments.",
+      "Upload a spend CSV and VendorLens normalizes vendor names with AI, deduplicates entries, and gives you one clean view of who you're paying.",
   },
   {
     icon: FileText,
     title: "Contract Intelligence",
     description:
-      "Upload contract PDFs and let AI extract renewal dates, auto-renew clauses, notice periods, and pricing escalation terms.",
+      "Drop in a contract PDF. AI reads it and pulls out the renewal date, auto-renew clause, notice period, and price escalation terms — no manual parsing.",
   },
   {
     icon: Copy,
     title: "Duplicate Detection",
     description:
-      "Embeddings-powered similarity analysis finds overlapping tools and flags consolidation opportunities to reduce waste.",
+      "Semantic similarity flags when two vendors do the same job. Useful when different teams buy tools independently without realizing the overlap.",
   },
   {
     icon: Search,
-    title: "AI Search Assistant",
+    title: "Ask Your Vendor Data",
     description:
-      'Ask natural questions like "Do we already use a CRM?" and get instant, cited answers from your vendor data.',
+      'Type a question like "Do we have a contract with Salesforce expiring this quarter?" and get a direct answer drawn from your actual contracts and vendor list.',
   },
 ];
 
-const stats = [
-  { label: "Average savings found", value: "23%", sublabel: "on duplicate tools" },
-  { label: "Contracts analyzed", value: "<60s", sublabel: "per document" },
-  { label: "Renewal alerts", value: "30/60/90", sublabel: "day advance notice" },
+const steps = [
+  {
+    icon: Upload,
+    step: "1",
+    title: "Import your vendors",
+    description: "Upload a spend export CSV or add vendors manually. AI cleans up naming inconsistencies automatically.",
+  },
+  {
+    icon: FileText,
+    step: "2",
+    title: "Attach contracts",
+    description: "Upload PDFs for each vendor. Key terms are extracted and stored — renewal dates, notice windows, pricing clauses.",
+  },
+  {
+    icon: Bell,
+    step: "3",
+    title: "Stay ahead of renewals",
+    description: "Get alerts before contracts auto-renew. See which vendors overlap, and come to renewal conversations with the full picture.",
+  },
 ];
 
 export default function LandingPage() {
@@ -70,61 +85,76 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="h-screen flex items-center justify-center px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
             <Eye className="h-4 w-4" />
             AI-Powered Vendor Intelligence
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-slate-900 tracking-tight leading-[1.1] mb-6">
-            See everything.
+            Know your vendors.
             <br />
             <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-              Miss nothing.
+              Own your contracts.
             </span>
           </h1>
           <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            VendorLens AI gives your organization centralized visibility into vendors, contracts,
-            renewals, and duplicate tools — so you stop overspending and start negotiating from
-            strength.
+            VendorLens pulls your vendor relationships, contracts, and renewal dates into one
+            place — and uses AI to surface what actually matters before it&apos;s too late.
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/login">
               <Button size="lg" className="text-base px-8">
-                Start Free <ArrowRight className="h-4 w-4 ml-1" />
+                Get Started <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
-            <Link href="#features">
+            <Link href="#how-it-works">
               <Button variant="outline" size="lg" className="text-base px-8">
-                See Features
+                How it works
               </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-16 bg-slate-950">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-slate-400 text-sm">{stat.label}</div>
-              <div className="text-slate-500 text-xs mt-0.5">{stat.sublabel}</div>
-            </div>
-          ))}
+      {/* How it works */}
+      <section id="how-it-works" className="min-h-screen flex items-center bg-slate-50 px-6 py-24">
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-slate-900 mb-3">How it works</h2>
+            <p className="text-slate-500 text-lg max-w-xl mx-auto">
+              Three steps from messy spreadsheets to full contract visibility.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {steps.map((s) => (
+              <div key={s.step} className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                    {s.step}
+                  </div>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                  <s.icon className="h-5 w-5 text-slate-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-1">{s.title}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed">{s.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
+      <section id="features" className="min-h-screen flex items-center px-6 py-24">
+        <div className="max-w-6xl mx-auto w-full">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">
-              Everything you need to manage vendor chaos
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">What VendorLens does</h2>
             <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              AI surfaces the insights. You make the decisions.
+              Built around the actual pain points of managing software vendors at scale.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -146,29 +176,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust */}
-      <section className="py-20 bg-slate-50 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-8 mb-12 flex-wrap">
-            <div className="flex items-center gap-2 text-slate-400">
-              <Shield className="h-5 w-5" />
-              <span className="text-sm font-medium">SOC 2 Ready Architecture</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-400">
-              <Zap className="h-5 w-5" />
-              <span className="text-sm font-medium">Sub-second Search</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-400">
-              <Eye className="h-5 w-5" />
-              <span className="text-sm font-medium">Human-in-the-Loop</span>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-6">
-            Ready to see what you&apos;ve been missing?
+      {/* CTA */}
+      <section className="min-h-screen flex items-center bg-slate-950 px-6">
+        <div className="max-w-2xl mx-auto text-center w-full">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Give it a try
           </h2>
+          <p className="text-slate-400 mb-8 text-lg">
+            Add your vendors, upload a contract or two, and see what the AI pulls out.
+            No setup fee, no sales call.
+          </p>
           <Link href="/login">
-            <Button size="lg" className="text-base px-10">
-              Get Started Today <ArrowRight className="h-4 w-4 ml-1" />
+            <Button size="lg" className="text-base px-10 bg-white text-slate-900 hover:bg-slate-100">
+              Open VendorLens <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </Link>
         </div>

@@ -42,12 +42,23 @@ export default function DashboardPage() {
   async function loadDashboard() {
     try {
       const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const accessQuery = supabase
+        .from("access_requests")
+        .select("*")
+        .eq("status", "pending");
+      if (user) {
+        accessQuery.eq("approver_id", user.id);
+      }
 
       const [vendorRes, contractRes, duplicateRes, accessRes] = await Promise.all([
         supabase.from("vendors").select("*").eq("is_active", true),
         supabase.from("contracts").select("*, vendors(name)").order("renewal_date", { ascending: true }),
         supabase.from("duplicate_groups").select("*").eq("status", "flagged"),
-        supabase.from("access_requests").select("*").eq("status", "pending"),
+        accessQuery,
       ]);
 
       const vendors = vendorRes.data || [];
@@ -369,10 +380,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-800">
-                    {stats.pendingAccessRequests} pending access {stats.pendingAccessRequests === 1 ? "request" : "requests"}
+                    {stats.pendingAccessRequests} access {stats.pendingAccessRequests === 1 ? "request needs" : "requests need"} your approval
                   </p>
                   <Link href="/access" className="text-xs text-slate-400 hover:text-slate-700 transition-colors">
-                    Review now →
+                    Review approvals →
                   </Link>
                 </div>
               </div>

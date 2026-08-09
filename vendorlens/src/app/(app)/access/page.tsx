@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
@@ -30,24 +28,27 @@ import {
   User,
   Building2,
   Send,
+  Inbox,
+  UserCheck,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import type { AccessRequest, Vendor } from "@/lib/types";
+import type { AccessRequest, UserProfile, Vendor } from "@/lib/types";
+
+type ViewTab = "approvals" | "my-requests";
 
 export default function AccessPage() {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<ViewTab>("approvals");
   const [filterStatus, setFilterStatus] = useState("pending");
 
-  // New request form
   const [selectedVendor, setSelectedVendor] = useState("");
   const [requestReason, setRequestReason] = useState("");
-  const [requesterName, setRequesterName] = useState("");
-  const [requesterEmail, setRequesterEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -58,21 +59,45 @@ export default function AccessPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const [requestRes, vendorRes] = await Promise.all([
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [requestRes, vendorRes, profileRes] = await Promise.all([
         supabase
           .from("access_requests")
           .select("*, vendors(name)")
           .order("created_at", { ascending: false }),
-        supabase.from("vendors").select("id, name").eq("is_active", true),
+        supabase
+          .from("vendors")
+          .select("id, name, owner_id, owner_name, owner:profiles!owner_id(full_name)")
+          .eq("is_active", true),
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
       ]);
 
-      setRequests(
-        (requestRes.data || []).map((r: Record<string, unknown>) => ({
-          ...r,
-          vendor_name: (r.vendors as Record<string, string>)?.name || "Unknown",
-        })) as unknown as AccessRequest[]
+      const mapped = (requestRes.data || []).map((r: Record<string, unknown>) => ({
+        ...r,
+        vendor_name: (r.vendors as Record<string, string>)?.name || "Unknown",
+      })) as unknown as AccessRequest[];
+
+      setRequests(mapped);
+      const vendorRows = (vendorRes.data || []) as Array<
+        Vendor & { owner?: { full_name: string } | null }
+      >;
+      setVendors(
+        vendorRows.map((v) => ({
+          ...v,
+          owner_name:
+            v.owner_name || v.owner?.full_name || null,
+        }))
       );
-      setVendors(vendorRes.data as unknown as Vendor[] || []);
+      setProfile(profileRes.data as UserProfile | null);
+
+      const pendingForMe = mapped.filter(
+        (r) => r.approver_id === user.id && r.status === "pending"
+      ).length;
+      if (pendingForMe === 0) setActiveTab("my-requests");
     } catch {
       // Graceful degradation
     } finally {
@@ -94,8 +119,6 @@ export default function AccessPage() {
         body: JSON.stringify({
           vendorId: selectedVendor,
           reason: requestReason,
-          requesterName,
-          requesterEmail,
         }),
       });
 
@@ -106,6 +129,7 @@ export default function AccessPage() {
       setShowRequestDialog(false);
       setSelectedVendor("");
       setRequestReason("");
+      setActiveTab("my-requests");
       loadData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Request failed";
@@ -123,51 +147,77 @@ export default function AccessPage() {
         body: JSON.stringify({ requestId, status }),
       });
 
-      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
       toast.success(
         status === "approved" ? "Access approved!" : "Request denied"
       );
       loadData();
-    } catch {
-      toast.error("Failed to update request");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update request";
+      toast.error(message);
     }
   }
 
-  const filteredRequests = requests.filter((r) => {
+  const userId = profile?.id;
+  const isAdmin = profile?.role === "admin";
+
+  const approvalQueue = requests.filter((r) => {
+    if (!userId) return false;
+    return r.approver_id === userId || (isAdmin && r.status === "pending");
+  });
+
+  const myRequests = requests.filter((r) => r.requester_id === userId);
+  const tabRequests = activeTab === "approvals" ? approvalQueue : myRequests;
+
+  const filteredRequests = tabRequests.filter((r) => {
     if (!filterStatus) return true;
     return r.status === filterStatus;
   });
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
-  const approvedCount = requests.filter((r) => r.status === "approved").length;
-  const deniedCount = requests.filter((r) => r.status === "denied").length;
+  const pendingApprovalCount = approvalQueue.filter(
+    (r) => r.status === "pending"
+  ).length;
+  const myPendingCount = myRequests.filter((r) => r.status === "pending").length;
+
+  function canApprove(req: AccessRequest) {
+    if (req.status !== "pending" || !userId) return false;
+    return req.approver_id === userId || isAdmin;
+  }
+
+  const selectedVendorData = vendors.find((v) => v.id === selectedVendor);
+  const approverLabel = (v: Vendor) => v.owner_name || "Unassigned";
 
   return (
     <>
       <Header
         title="Access Requests"
-        description="Request and manage access to vendor tools"
+        description="Request tool access or review requests assigned to you"
       />
 
       <div className="p-6 space-y-5">
         {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { icon: Clock, value: pendingCount, label: "Pending", iconBg: "bg-amber-50", iconColor: "text-amber-500", valuColor: "text-amber-700" },
-            { icon: CheckCircle2, value: approvedCount, label: "Approved", iconBg: "bg-emerald-50", iconColor: "text-emerald-500", valuColor: "text-emerald-700" },
-            { icon: XCircle, value: deniedCount, label: "Denied", iconBg: "bg-red-50", iconColor: "text-red-400", valuColor: "text-red-700" },
-          ].map(({ icon: Icon, value, label, iconBg, iconColor, valuColor }) => (
-            <div key={label} className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
-                <Icon className={`h-5 w-5 ${iconColor}`} />
-              </div>
-              <div>
-                <p className={`text-2xl font-bold ${valuColor}`}>{value}</p>
-                <p className="text-xs text-slate-400">{label}</p>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <Inbox className="h-5 w-5 text-amber-500" />
             </div>
-          ))}
+            <div>
+              <p className="text-2xl font-bold text-amber-700">{pendingApprovalCount}</p>
+              <p className="text-xs text-slate-400">Awaiting your approval</p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Clock className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-700">{myPendingCount}</p>
+              <p className="text-xs text-slate-400">Your open requests</p>
+            </div>
+          </div>
           <button
             onClick={() => setShowRequestDialog(true)}
             className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-4 flex items-center gap-3 hover:bg-white/90 transition-all cursor-pointer"
@@ -182,12 +232,46 @@ export default function AccessPage() {
           </button>
         </div>
 
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-100/80 w-fit">
+          <button
+            onClick={() => {
+              setActiveTab("approvals");
+              setFilterStatus("pending");
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === "approvals"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Pending my approval
+            {pendingApprovalCount > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                {pendingApprovalCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("my-requests");
+              setFilterStatus("");
+            }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === "my-requests"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            My requests
+          </button>
+        </div>
+
         {/* Requests Table */}
         <div className="rounded-2xl bg-white/80 backdrop-blur-md border border-white/70 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-800">Access Requests</h2>
+              <h2 className="text-sm font-semibold text-slate-800">{activeTab === "approvals" ? "Requests to review" : "Your access requests"}</h2>
             </div>
             <Select
               value={filterStatus}
@@ -210,26 +294,30 @@ export default function AccessPage() {
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-12">
               <KeyRound className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">No access requests found</p>
-              <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => setShowRequestDialog(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Request Access
-              </Button>
+              <p className="text-sm text-slate-400">{activeTab === "approvals" ? "No requests waiting for your approval" : "You haven't submitted any access requests"}</p>
+              {activeTab === "my-requests" && (
+                <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => setShowRequestDialog(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Request Access
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Requester</TableHead>
+                  {activeTab === "approvals" && <TableHead>Requester</TableHead>}
                   <TableHead>Vendor / Tool</TableHead>
                   <TableHead>Reason</TableHead>
+                  <TableHead>Approver</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
+                  {activeTab === "approvals" && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRequests.map((req) => (
                   <TableRow key={req.id}>
+                    {activeTab === "approvals" && (
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
@@ -241,6 +329,7 @@ export default function AccessPage() {
                         </div>
                       </div>
                     </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-slate-300" />
@@ -249,6 +338,14 @@ export default function AccessPage() {
                     </TableCell>
                     <TableCell className="max-w-xs">
                       <p className="text-xs text-slate-400 truncate">{req.reason || "No reason provided"}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-slate-300 flex-shrink-0" />
+                        <span className="text-sm text-slate-700">
+                          {req.approver_name || "Unassigned"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-slate-400">{formatDate(req.created_at)}</TableCell>
                     <TableCell>
@@ -262,18 +359,22 @@ export default function AccessPage() {
                         {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                       </span>
                     </TableCell>
+                    {activeTab === "approvals" && (
                     <TableCell>
-                      {req.status === "pending" && (
+                      {canApprove(req) && (
                         <div className="flex gap-1">
-                          <Button variant="outline" size="sm" className="h-7 w-7 p-0 rounded-lg" onClick={() => handleApproval(req.id, "approved")}>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" />
+                          <Button variant="outline" size="sm" className="h-7 px-2 rounded-lg text-xs" onClick={() => handleApproval(req.id, "approved")}>
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mr-1" />
+                            Approve
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" onClick={() => handleApproval(req.id, "denied")}>
-                            <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                          <Button variant="ghost" size="sm" className="h-7 px-2 rounded-lg text-xs" onClick={() => handleApproval(req.id, "denied")}>
+                            <XCircle className="h-3.5 w-3.5 text-slate-400 mr-1" />
+                            Deny
                           </Button>
                         </div>
                       )}
                     </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -296,27 +397,13 @@ export default function AccessPage() {
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Your Name
-              </label>
-              <Input
-                value={requesterName}
-                onChange={(e) => setRequesterName(e.target.value)}
-                placeholder="John Smith"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Your Email
-              </label>
-              <Input
-                type="email"
-                value={requesterEmail}
-                onChange={(e) => setRequesterEmail(e.target.value)}
-                placeholder="john@company.com"
-              />
-            </div>
+            {profile && (
+              <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                <p className="text-slate-500 text-xs mb-1">Submitting as</p>
+                <p className="font-medium text-slate-800">{profile.full_name}</p>
+                <p className="text-slate-400 text-xs">{profile.email}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Tool / Vendor <span className="text-red-500">*</span>
@@ -332,6 +419,24 @@ export default function AccessPage() {
                   </option>
                 ))}
               </Select>
+            </div>
+            <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm">
+              <p className="text-blue-600/80 text-xs mb-1">Approver</p>
+              {selectedVendor ? (
+                <>
+                  <p className="font-medium text-slate-800 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-blue-500" />
+                    {selectedVendorData ? approverLabel(selectedVendorData) : "Unassigned"}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Your request will be sent to this person for approval.
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500 text-xs">
+                  Select a tool above to see who will approve your request.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">

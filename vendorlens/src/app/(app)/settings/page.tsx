@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,17 +17,121 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
+import type { UserProfile, UserRole } from "@/lib/types";
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin",
+  finance: "Finance",
+  department_head: "Department Head",
+  employee: "Employee",
+};
+
+const ROLE_DESCRIPTIONS: {
+  role: UserRole;
+  label: string;
+  desc: string;
+  color: "destructive" | "warning" | "info" | "secondary";
+}[] = [
+  {
+    role: "admin",
+    label: "Admin",
+    desc: "Full access to all features, user management, and settings",
+    color: "destructive",
+  },
+  {
+    role: "finance",
+    label: "Finance",
+    desc: "Upload vendors/contracts, view spend, manage duplicates",
+    color: "warning",
+  },
+  {
+    role: "department_head",
+    label: "Department Head",
+    desc: "View department vendors, approve access requests",
+    color: "info",
+  },
+  {
+    role: "employee",
+    label: "Employee",
+    desc: "Search vendors, request access, view basic info",
+    color: "secondary",
+  },
+];
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [companyDomain, setCompanyDomain] = useState("");
 
-  function handleSave() {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success("Settings saved!");
-    }, 1000);
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (error) throw error;
+      if (!data) return;
+
+      const p = data as UserProfile;
+      setProfile(p);
+      setFullName(p.full_name || "");
+      setDepartment(p.department || "");
+      setCompanyDomain(p.company_domain || "");
+    } catch {
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function handleSave() {
+    if (!profile) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const updates: Partial<UserProfile> = {
+        full_name: fullName.trim(),
+        department: department.trim() || null,
+      };
+      if (profile.role === "admin") {
+        updates.company_domain = companyDomain.trim();
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", profile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProfile(data as UserProfile);
+      toast.success("Settings saved!");
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isAdmin = profile?.role === "admin";
 
   return (
     <>
@@ -43,39 +147,58 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Full Name
-                </label>
-                <Input placeholder="Your name" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Email
-                </label>
-                <Input type="email" placeholder="you@company.com" disabled />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Role
-                </label>
-                <Select disabled>
-                  <option>Admin</option>
-                  <option>Finance</option>
-                  <option>Department Head</option>
-                  <option>Employee</option>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Department
-                </label>
-                <Input placeholder="Engineering" />
-              </div>
-            </div>
+            {loading ? (
+              <p className="text-sm text-slate-400">Loading profile...</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Full Name
+                    </label>
+                    <Input
+                      placeholder="Your name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Email
+                    </label>
+                    <Input
+                      type="email"
+                      value={profile?.email ?? ""}
+                      disabled
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Role
+                    </label>
+                    <Select disabled value={profile?.role ?? ""}>
+                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                        <option key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Department
+                    </label>
+                    <Input
+                      placeholder="Engineering"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -92,9 +215,16 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Company Domain
               </label>
-              <Input placeholder="company.com" />
+              <Input
+                placeholder="company.com"
+                value={companyDomain}
+                onChange={(e) => setCompanyDomain(e.target.value)}
+                disabled={!isAdmin || loading}
+              />
               <p className="text-xs text-slate-400 mt-1">
-                Users with this email domain will be auto-provisioned
+                {isAdmin
+                  ? "Users with this email domain will be auto-provisioned"
+                  : "Contact an admin to change your organization domain"}
               </p>
             </div>
           </CardContent>
@@ -110,36 +240,22 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[
-                {
-                  role: "Admin",
-                  desc: "Full access to all features, user management, and settings",
-                  color: "destructive" as const,
-                },
-                {
-                  role: "Finance",
-                  desc: "Upload vendors/contracts, view spend, manage duplicates",
-                  color: "warning" as const,
-                },
-                {
-                  role: "Department Head",
-                  desc: "View department vendors, approve access requests",
-                  color: "info" as const,
-                },
-                {
-                  role: "Employee",
-                  desc: "Search vendors, request access, view basic info",
-                  color: "secondary" as const,
-                },
-              ].map((r) => (
+              {ROLE_DESCRIPTIONS.map((r) => (
                 <div
                   key={r.role}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                  className={`flex items-center justify-between p-3 rounded-lg ${
+                    profile?.role === r.role
+                      ? "bg-blue-50 ring-1 ring-blue-200"
+                      : "bg-slate-50"
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Badge variant={r.color}>{r.role}</Badge>
+                    <Badge variant={r.color}>{r.label}</Badge>
                     <span className="text-sm text-slate-600">{r.desc}</span>
                   </div>
+                  {profile?.role === r.role && (
+                    <Badge variant="info">Your role</Badge>
+                  )}
                 </div>
               ))}
             </div>
@@ -181,7 +297,11 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
+        <Button
+          onClick={handleSave}
+          disabled={saving || loading || !profile}
+          className="w-full"
+        >
           <Save className="h-4 w-4 mr-1" />
           {saving ? "Saving..." : "Save Settings"}
         </Button>
