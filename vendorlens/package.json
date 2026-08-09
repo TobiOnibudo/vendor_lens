@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 5173",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backfill:knowledge": "tsx scripts/backfill-knowledge-chunks.ts"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
@@ -36,6 +37,8 @@
   },
   "devDependencies": {
     "@types/papaparse": "^5.5.2",
-    "pdfkit": "^0.17.2"
+    "dotenv": "^17.4.2",
+    "pdfkit": "^0.17.2",
+    "tsx": "^4.22.1"
   }
 }

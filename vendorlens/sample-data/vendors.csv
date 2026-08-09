@@ -1,0 +1,31 @@
+vendor_name,amount,department,category,description,period
+Salesforce,24500,Sales,CRM,Customer relationship management platform,2025
+salesforce.com,3200,Marketing,CRM,Salesforce marketing licenses,2025
+Microsoft Azure,18750,Engineering,Cloud Infrastructure,Cloud hosting and compute services,2025
+Azure Cloud,4200,Engineering,Cloud Infrastructure,Azure storage and networking,2025
+Slack,5400,Engineering,Communication,Team messaging and collaboration,2025
+Slack Technologies,1200,HR,Communication,HR team Slack licenses,2025
+Zoom,3600,Operations,Communication,Video conferencing,2025
+Zoom Video Communications,800,HR,Communication,HR Zoom licenses,2025
+HubSpot,12000,Marketing,Marketing Automation,Inbound marketing and CRM platform,2025
+AWS,31000,Engineering,Cloud Infrastructure,Amazon Web Services compute and storage,2025
+Amazon Web Services,6500,Data,Cloud Infrastructure,AWS data pipeline services,2025
+DocuSign,2800,Legal,Document Management,Electronic signature platform,2025
+GitHub,4800,Engineering,Developer Tools,Code repository and CI/CD,2025
+Jira,3200,Engineering,Project Management,Issue tracking and project management,2025
+Atlassian,1500,Operations,Project Management,Confluence wiki licenses,2025
+Notion,1800,Operations,Productivity,Team wiki and documentation,2025
+Figma,2400,Design,Design Tools,UI/UX design and prototyping,2025
+Adobe Creative Cloud,5600,Marketing,Design Tools,Creative suite for marketing team,2025
+Adobe,900,Design,Design Tools,Adobe stock assets,2025
+Stripe,8200,Finance,Payments,Payment processing platform,2025
+Twilio,3400,Engineering,Communications API,SMS and voice API services,2025
+Snowflake,14500,Data,Data Warehouse,Cloud data warehousing,2025
+Datadog,6800,Engineering,Monitoring,Infrastructure and application monitoring,2025
+PagerDuty,2200,Engineering,Monitoring,On-call incident management,2025
+Okta,7500,IT,Identity Management,Single sign-on and identity provider,2025
+1Password,1600,IT,Security,Team password management,2025
+Intercom,4200,Support,Customer Support,Customer messaging and support platform,2025
+Zendesk,3800,Support,Customer Support,Help desk ticketing system,2025
+Greenhouse,5500,HR,HR Software,Applicant tracking system,2025
+Rippling,9200,HR,HR Software,HR and payroll platform,2025
