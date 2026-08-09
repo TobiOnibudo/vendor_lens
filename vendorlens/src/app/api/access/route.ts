@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { resolveAccessRequest } from "@/lib/access/resolve-request";
+import { isSlackConfigured, notifyApproverOfAccessRequest } from "@/lib/slack";
+import {
+  createServiceClient,
+  createServerSupabaseClient,
+} from "@/lib/supabase/server";
+
+async function getAuthenticatedUser() {
+  const authClient = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+  return user;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { vendorId, reason, requesterId, requesterName, requesterEmail } =
-      await request.json();
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { vendorId, reason } = await request.json();
 
     if (!vendorId) {
       return NextResponse.json(
@@ -15,21 +32,50 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServiceClient();
 
-    // Find vendor owner to route the request
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const requesterName =
+      profile?.full_name ||
+      (user.user_metadata?.full_name as string | undefined) ||
+      user.email ||
+      "Unknown";
+    const requesterEmail = profile?.email || user.email || null;
+
     const { data: vendor } = await supabase
       .from("vendors")
-      .select("owner_id, name")
+      .select("owner_id, owner_name, name")
       .eq("id", vendorId)
       .single();
+
+    if (!vendor) {
+      return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+    }
+
+    let approverName: string | null = vendor.owner_name || null;
+    let approverEmail: string | null = null;
+    if (vendor.owner_id) {
+      const { data: approverProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", vendor.owner_id)
+        .maybeSingle();
+      approverName = approverProfile?.full_name || approverName;
+      approverEmail = approverProfile?.email || null;
+    }
 
     const { data: accessRequest, error } = await supabase
       .from("access_requests")
       .insert({
         vendor_id: vendorId,
-        requester_id: requesterId || null,
-        requester_name: requesterName || "Unknown",
-        requester_email: requesterEmail || null,
-        approver_id: vendor?.owner_id || null,
+        requester_id: user.id,
+        requester_name: requesterName,
+        requester_email: requesterEmail,
+        approver_id: vendor.owner_id || null,
+        approver_name: approverName,
         reason: reason || null,
         status: "pending",
       })
@@ -38,8 +84,19 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    // #TODO: Send notification email to vendor owner
-    // #TODO: Integrate with Slack/Teams for approval notifications
+    if (isSlackConfigured() && approverEmail) {
+      try {
+        await notifyApproverOfAccessRequest({
+          requestId: accessRequest.id,
+          requesterName: requesterName,
+          vendorName: vendor.name,
+          reason: reason || null,
+          approverEmail,
+        });
+      } catch (slackErr) {
+        console.error("[slack] notifyApproverOfAccessRequest failed:", slackErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -53,7 +110,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { requestId, status, approverId } = await request.json();
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { requestId, status } = await request.json();
 
     if (!requestId || !status) {
       return NextResponse.json(
@@ -62,20 +124,32 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    if (status !== "approved" && status !== "denied") {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
     const supabase = await createServiceClient();
 
-    const { error } = await supabase
-      .from("access_requests")
-      .update({
-        status,
-        approver_id: approverId || null,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (error) throw error;
+    const result = await resolveAccessRequest(supabase, {
+      requestId,
+      status,
+      actorId: user.id,
+      actorName: profile?.full_name || null,
+      actorRole: profile?.role || null,
+    });
 
-    // #TODO: Send notification to requester about approval/denial
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.httpStatus }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

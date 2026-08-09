@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { extractContractData } from "@/lib/ai";
+import { indexContract } from "@/lib/rag";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServiceClient();
 
-    // Upload to Supabase Storage
     let fileUrl: string | null = null;
     try {
       const fileName = `${Date.now()}-${file.name}`;
@@ -32,16 +32,16 @@ export async function POST(request: NextRequest) {
       // Storage upload failed — continue without file URL
     }
 
-    // Pass the PDF directly to Gemini as base64 so it can natively read the document
     const arrayBuffer = await file.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     const mimeType = file.type || "application/pdf";
 
-    // AI extraction
     const extracted = await extractContractData({ data: base64, mimeType });
+    const searchableText =
+      typeof extracted.searchable_text === "string"
+        ? extracted.searchable_text
+        : null;
 
-    // Auto-link vendor: if no manual selection, try to match the extracted vendor name
-    // against existing vendors (name, canonical_name, aliases)
     let resolvedVendorId: string | null = vendorId || null;
     let autoLinked = false;
 
@@ -63,14 +63,12 @@ export async function POST(request: NextRequest) {
             .filter(Boolean)
             .map((s: string) => s.toLowerCase().trim());
 
-          // Exact match first
           if (candidates.some((c) => c === needle)) {
             resolvedVendorId = v.id;
             autoLinked = true;
             break;
           }
 
-          // Partial match: extracted name contains or is contained by a candidate
           if (
             candidates.some(
               (c) => needle.includes(c) || c.includes(needle)
@@ -84,7 +82,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store contract
     const { data: contract, error } = await supabase
       .from("contracts")
       .insert({
@@ -98,6 +95,7 @@ export async function POST(request: NextRequest) {
         pricing_escalation: extracted.pricing_escalation || null,
         summary: extracted.summary || null,
         key_terms: extracted.key_terms || [],
+        full_text: searchableText,
         status: "pending_review",
         extracted_at: new Date().toISOString(),
       })
@@ -105,6 +103,42 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    if (contract && resolvedVendorId) {
+      const vendorName =
+        (extracted.vendor_name as string) ||
+        (
+          await supabase
+            .from("vendors")
+            .select("name")
+            .eq("id", resolvedVendorId)
+            .single()
+        ).data?.name ||
+        "Unknown Vendor";
+
+      try {
+        await indexContract(
+          supabase,
+          {
+            id: contract.id,
+            vendor_id: resolvedVendorId,
+            file_name: contract.file_name,
+            renewal_date: contract.renewal_date,
+            auto_renew: contract.auto_renew,
+            notice_period_days: contract.notice_period_days,
+            contract_value: contract.contract_value,
+            pricing_escalation: contract.pricing_escalation,
+            summary: contract.summary,
+            key_terms: contract.key_terms as string[] | null,
+            full_text: searchableText,
+          },
+          vendorName,
+          searchableText
+        );
+      } catch (indexErr) {
+        console.error("[contracts/upload] Indexing failed:", indexErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

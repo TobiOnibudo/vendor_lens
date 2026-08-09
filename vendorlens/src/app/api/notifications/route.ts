@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import {
+  createServiceClient,
+  createServerSupabaseClient,
+} from "@/lib/supabase/server";
 
 export async function GET() {
   try {
+    const authClient = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
     const supabase = await createServiceClient();
     const notifications: {
       id: string;
@@ -10,13 +18,13 @@ export async function GET() {
       title: string;
       body: string;
       time: string;
+      href?: string;
     }[] = [];
 
     const now = new Date();
     const in30Days = new Date(now);
     in30Days.setDate(in30Days.getDate() + 30);
 
-    // Contracts renewing within 30 days
     const { data: renewals } = await supabase
       .from("contracts")
       .select("id, renewal_date, auto_renew, vendors(name)")
@@ -33,7 +41,8 @@ export async function GET() {
           (renewalDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
         );
         const vendorName =
-          (c.vendors as { name: string } | null)?.name ?? "Unknown vendor";
+          (c.vendors as unknown as { name: string } | null)?.name ??
+          "Unknown vendor";
         notifications.push({
           id: `renewal-${c.id}`,
           type: "renewal",
@@ -47,7 +56,6 @@ export async function GET() {
       }
     }
 
-    // Flagged duplicate groups
     const { data: duplicates } = await supabase
       .from("duplicate_groups")
       .select("id, group_name, vendor_names, total_combined_spend, created_at")
@@ -69,32 +77,37 @@ export async function GET() {
             month: "short",
             day: "numeric",
           }),
+          href: "/duplicates",
         });
       }
     }
 
-    // Pending access requests
-    const { data: requests } = await supabase
-      .from("access_requests")
-      .select("id, requester_name, vendors(name), created_at")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(3);
+    if (user) {
+      const { data: requests } = await supabase
+        .from("access_requests")
+        .select("id, requester_name, vendors(name), created_at")
+        .eq("status", "pending")
+        .eq("approver_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(3);
 
-    if (requests) {
-      for (const r of requests) {
-        const vendorName =
-          (r.vendors as { name: string } | null)?.name ?? "a tool";
-        notifications.push({
-          id: `access-${r.id}`,
-          type: "info",
-          title: "Access request pending",
-          body: `${r.requester_name || "Someone"} requested access to ${vendorName}.`,
-          time: new Date(r.created_at).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          }),
-        });
+      if (requests) {
+        for (const r of requests) {
+          const vendorName =
+            (r.vendors as unknown as { name: string } | null)?.name ??
+            "a tool";
+          notifications.push({
+            id: `access-${r.id}`,
+            type: "info",
+            title: "Access request needs your approval",
+            body: `${r.requester_name || "Someone"} requested access to ${vendorName}.`,
+            time: new Date(r.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            }),
+            href: "/access",
+          });
+        }
       }
     }
 

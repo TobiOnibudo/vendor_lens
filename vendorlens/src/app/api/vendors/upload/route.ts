@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, createServerSupabaseClient } from "@/lib/supabase/server";
-import { clusterVendorNames, getEmbedding } from "@/lib/ai";
+import { clusterVendorNames } from "@/lib/ai";
+import { indexVendor } from "@/lib/rag";
 
 interface ParsedVendorRow {
   vendor_name: string;
@@ -200,13 +201,13 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          const embeddingText = `Vendor: ${name}. Category: ${data.category || "Unknown"}. Description: ${data.description || name}. Department: ${mergedDepts.join(", ")}. Annual spend: $${data.total}`;
-          const embedding = await getEmbedding(embeddingText);
-
-          await supabase.from("vendor_embeddings").insert({
-            vendor_id: vendor.id,
-            content: embeddingText,
-            embedding,
+          await indexVendor(supabase, {
+            id: vendor.id,
+            name,
+            category: data.category || null,
+            description: data.description || null,
+            department: mergedDepts.join(", ") || null,
+            annual_spend: data.total,
           });
         } catch {
           // Embedding generation failed — non-critical

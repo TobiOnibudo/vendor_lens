@@ -1,13 +1,33 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let aiClient: GoogleGenAI | null = null;
+
+export function getGeminiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API key must be set when using the Gemini API.");
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+}
+
+const EMBEDDING_DIMENSIONS = 768;
 
 export async function getEmbedding(text: string): Promise<number[]> {
-  const result = await ai.models.embedContent({
+  const result = await getGeminiClient().models.embedContent({
     model: "gemini-embedding-001",
     contents: text,
+    config: { outputDimensionality: EMBEDDING_DIMENSIONS },
   });
-  return result.embeddings![0].values!;
+  const values = result.embeddings![0].values!;
+  if (values.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `Expected ${EMBEDDING_DIMENSIONS}-dim embedding, got ${values.length}`
+    );
+  }
+  return values;
 }
 
 export async function extractContractData(
@@ -23,6 +43,7 @@ Return a JSON object with these fields:
 - pricing_escalation: string description or null
 - summary: 2-3 sentence summary of the contract
 - key_terms: array of important terms/clauses as short strings
+- searchable_text: plain-text condensation of the full contract for search indexing (max 8000 characters; include key clauses, dates, fees, and obligations)
 
 Only include data you can confidently extract. Use null for uncertain fields.`;
 
@@ -34,7 +55,7 @@ Only include data you can confidently extract. Use null for uncertain fields.`;
           { inlineData: { mimeType: source.mimeType, data: source.data } },
         ];
 
-  const result = await ai.models.generateContent({
+  const result = await getGeminiClient().models.generateContent({
     model: "gemini-2.5-flash",
     contents,
     config: { responseMimeType: "application/json" },
@@ -46,7 +67,7 @@ Only include data you can confidently extract. Use null for uncertain fields.`;
 export async function clusterVendorNames(
   vendors: string[]
 ): Promise<Record<string, string[]>> {
-  const result = await ai.models.generateContent({
+  const result = await getGeminiClient().models.generateContent({
     model: "gemini-2.5-flash",
     contents: `You are a data cleaning expert. Given a list of vendor names, identify duplicates and variations of the same company.
 Return a JSON object where keys are the canonical (clean) vendor name and values are arrays of all name variations that map to it.
@@ -63,7 +84,7 @@ ${vendors.join("\n")}`,
 export async function detectDuplicateTools(
   vendors: Array<{ name: string; description: string; category: string }>
 ) {
-  const result = await ai.models.generateContent({
+  const result = await getGeminiClient().models.generateContent({
     model: "gemini-2.5-flash",
     contents: `You are a software procurement analyst. Analyze the list of vendor tools and identify potential duplicates or overlapping functionality.
 Return a JSON object with:
@@ -78,28 +99,4 @@ ${JSON.stringify(vendors, null, 2)}`,
   return JSON.parse(result.text!);
 }
 
-export async function chatWithData(
-  question: string,
-  context: string
-): Promise<string> {
-  const result = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `You are VendorLens AI, an internal tool assistant. You help employees find information about their company's vendors, contracts, and software tools.
-
-Rules:
-- Only reference data provided in the context
-- Cite specific renewal dates, costs, and vendor names
-- If a tool might overlap with another, mention it
-- Suggest negotiation timing if a renewal is within 90 days
-- Be concise and helpful
-- Format responses with clear sections when appropriate
-- If you don't have enough data to answer, say so honestly
-
-Context (internal vendor data):
-${context}
-
-Question: ${question}`,
-  });
-
-  return result.text!;
-}
+export type ChatTurn = { role: "user" | "assistant"; content: string };
