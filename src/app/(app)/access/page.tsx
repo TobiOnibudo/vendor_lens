@@ -34,13 +34,14 @@ import {
 import { formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import type { AccessRequest, UserProfile, Vendor } from "@/lib/types";
+import type { AccessRequest, UserProfile } from "@/lib/types";
 
 type ViewTab = "approvals" | "my-requests";
+type VendorOption = { id: string; name: string; owner_name: string | null };
 
 export default function AccessPage() {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -82,14 +83,17 @@ export default function AccessPage() {
       })) as unknown as AccessRequest[];
 
       setRequests(mapped);
-      const vendorRows = (vendorRes.data || []) as Array<
-        Vendor & { owner?: { full_name: string } | null }
-      >;
+      const vendorRows = (vendorRes.data || []) as Array<{
+        id: string;
+        name: string;
+        owner_name: string | null;
+        owner: { full_name: string }[] | null;
+      }>;
       setVendors(
         vendorRows.map((v) => ({
           ...v,
           owner_name:
-            v.owner_name || v.owner?.full_name || null,
+            v.owner_name || v.owner?.[0]?.full_name || null,
         }))
       );
       setProfile(profileRes.data as UserProfile | null);
@@ -188,7 +192,7 @@ export default function AccessPage() {
   }
 
   const selectedVendorData = vendors.find((v) => v.id === selectedVendor);
-  const approverLabel = (v: Vendor) => v.owner_name || "Unassigned";
+  const approverLabel = (v: VendorOption) => v.owner_name || "Unassigned";
 
   return (
     <>

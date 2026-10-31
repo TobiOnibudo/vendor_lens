@@ -19,12 +19,12 @@ AI suggests; humans confirm. Extracted contract fields stay pending until someon
 
 ## Setup
 
-**You need:** Node 18+, a [Supabase](https://supabase.com) project, and a [Gemini API key](https://aistudio.google.com/app/apikey).
+**You need:** Node 22+, a [Supabase](https://supabase.com) project, and an [OpenAI API key](https://platform.openai.com/api-keys).
 
 ```bash
 cd vendorlens
 npm install
-cp .env .env.local   # fill in your credentials
+cp .env.example .env.local   # fill in your credentials
 npm run dev          # http://localhost:5173
 ```
 
@@ -51,7 +51,8 @@ Copy `.env` → `.env.local`. Never commit `.env.local`.
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes |
-| `GEMINI_API_KEY` | Yes |
+| `OPENAI_API_KEY` | Yes |
+| `OPENAI_MODEL` | No — defaults to `gpt-4.1-mini` |
 | `NEXT_PUBLIC_APP_URL` / `APP_URL` | Yes (`http://localhost:5173` locally) |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | No — access-request DMs |
 
@@ -64,6 +65,22 @@ Copy `.env` → `.env.local`. Never commit `.env.local`.
 | `npm run dev` | Dev server (port 5173) |
 | `npm run build` | Production build |
 | `npm run backfill:knowledge` | Re-index vendors/contracts for AI search |
+
+## Vercel deployment
+
+Import the repository into Vercel as a Next.js project. Leave the build command as
+`npm run build`; no output-directory override is required. Add every required value
+from `.env.example` in **Vercel → Project → Settings → Environment Variables**.
+
+Set both `NEXT_PUBLIC_APP_URL` and `APP_URL` to your production URL. In Supabase
+Auth URL Configuration, set that same URL as the Site URL and add
+`https://<your-domain>/api/auth/callback` as a redirect URL. Create the private
+`contracts` Storage bucket and apply `supabase/schema.sql` plus the migration before
+the first deployment.
+
+The OpenAI embedding model produces 768-dimensional vectors to match the existing
+Supabase schema. After migrating from Gemini, run `npm run backfill:knowledge` once
+to replace every stored embedding.
 
 ---
 
