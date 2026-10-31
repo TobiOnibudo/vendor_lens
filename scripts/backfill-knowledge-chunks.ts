@@ -4,13 +4,13 @@
  * Usage:
  *   npm run backfill:knowledge
  *
- * Requires GEMINI_API_KEY, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY in .env.local
+ * Requires OPENAI_API_KEY, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY in .env.local
  */
 
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 
-// Load env before importing modules that use GEMINI_API_KEY
+// Load env before importing modules that use OPENAI_API_KEY.
 config({ path: ".env.local" });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,8 +21,8 @@ if (!supabaseUrl || !serviceKey) {
   process.exit(1);
 }
 
-if (!process.env.GEMINI_API_KEY) {
-  console.error("Missing GEMINI_API_KEY in .env.local");
+if (!process.env.OPENAI_API_KEY) {
+  console.error("Missing OPENAI_API_KEY in .env.local");
   process.exit(1);
 }
 
