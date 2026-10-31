@@ -19,8 +19,8 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
         className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in"
         onClick={() => onOpenChange(false)}
       />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <div className="relative z-50 w-full max-w-lg max-h-[calc(100vh-2rem)] animate-in zoom-in-95 fade-in duration-200">
+      <div className="fixed inset-0 flex items-center justify-center p-2">
+        <div className="relative z-50 w-full max-w-lg max-h-[calc(100dvh-1rem)] animate-in zoom-in-95 fade-in duration-200">
           {children}
         </div>
       </div>
@@ -33,7 +33,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
     <div
       ref={ref}
       className={cn(
-        "max-h-[calc(100vh-2rem)] overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6 pr-12",
+        "max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain bg-white rounded-xl shadow-xl border border-slate-200 p-6 pr-12 [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb:hover]:bg-slate-400",
         className
       )}
       {...props}
