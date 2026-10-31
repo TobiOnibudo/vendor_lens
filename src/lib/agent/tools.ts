@@ -70,7 +70,7 @@ async function searchKnowledge(
     );
     if (relevant.length > 0) {
       duplicateSection = relevant
-        .map((group) => `${group.group_name}: ${(group.vendor_names as string[]).join(", ")} — ${group.reason}`)
+        .map((group) => `${group.group_name}: ${(group.vendor_names as string[]).join(", ")} - ${group.reason}`)
         .join("\n");
     }
   }

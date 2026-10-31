@@ -35,8 +35,8 @@ const vendors = [
     annualValue: 24500,
     escalation: '3% annual increase applied at each renewal',
     services: [
-      'Sales Cloud Enterprise — 50 named user licenses',
-      'Premier Success Plan — included',
+      'Sales Cloud Enterprise - 50 named user licenses',
+      'Premier Success Plan - included',
       'Unlimited API calls',
       'Mobile access and offline sync',
     ],
@@ -54,7 +54,7 @@ const vendors = [
     contactEmail: 'contracts@microsoft.com',
     department: 'Engineering',
     category: 'Cloud Infrastructure',
-    contractType: 'Enterprise Agreement — Cloud Services',
+    contractType: 'Enterprise Agreement - Cloud Services',
     description: 'Azure Cloud Compute, Storage & Networking Services',
     effectiveDate: 'January 01, 2025',
     renewalDate: 'December 31, 2025',
@@ -94,7 +94,7 @@ const vendors = [
     annualValue: 5400,
     escalation: '5% annual increase at renewal',
     services: [
-      'Slack Pro — unlimited message history',
+      'Slack Pro - unlimited message history',
       'Unlimited integrations (GitHub, Jira, PagerDuty)',
       'Group video and audio calls',
       'SAML-based SSO via Okta',
@@ -124,7 +124,7 @@ const vendors = [
     annualValue: 3600,
     escalation: 'Fixed price; renegotiate at renewal',
     services: [
-      'Zoom Business — up to 300 participants per meeting',
+      'Zoom Business - up to 300 participants per meeting',
       'Cloud recording with 1 TB storage',
       'Webinar add-on for 10 hosts',
       'SSO and managed domains',
@@ -155,7 +155,7 @@ const vendors = [
     annualValue: 12000,
     escalation: '4% annual escalation; additional seats priced separately',
     services: [
-      'Marketing Hub Professional — 5 core seats',
+      'Marketing Hub Professional - 5 core seats',
       '10,000 marketing contacts included',
       'Email automation and A/B testing',
       'Landing page and blog tools',
@@ -189,7 +189,7 @@ const vendors = [
       '$31,000 reserved EC2 and RDS instance commitment (1-year)',
       'AWS Enterprise Support included',
       'Technical Account Manager (TAM) assigned',
-      'Well-Architected Review — annual session',
+      'Well-Architected Review - annual session',
       'Concierge support team access',
     ],
     sla: ['99.99% uptime for EC2 and S3', '24/7 phone, chat, and email support', 'P1: 15-min response time', 'Infrastructure Event Management included'],
@@ -216,7 +216,7 @@ const vendors = [
     annualValue: 2800,
     escalation: 'Fixed annual fee; $0.15/envelope overage',
     services: [
-      'DocuSign Business Pro — 2,500 envelopes/year',
+      'DocuSign Business Pro - 2,500 envelopes/year',
       'Advanced recipient field types',
       'Salesforce connector integration',
       'Bulk send for up to 500 recipients',
@@ -246,7 +246,7 @@ const vendors = [
     annualValue: 4800,
     escalation: '0% increase locked for 2 years',
     services: [
-      'GitHub Enterprise — unlimited private repositories',
+      'GitHub Enterprise - unlimited private repositories',
       'GitHub Actions: 50,000 minutes/month included',
       'GitHub Advanced Security (code scanning, secret scanning)',
       'SAML SSO and team synchronization',
@@ -276,7 +276,7 @@ const vendors = [
     annualValue: 3200,
     escalation: '5% annual increase per Atlassian standard terms',
     services: [
-      'Jira Software Cloud Standard — 35 user licenses',
+      'Jira Software Cloud Standard - 35 user licenses',
       'Unlimited projects and boards',
       'Automation: 1,000 rule runs/month per user',
       '2 GB file storage per user',
@@ -306,7 +306,7 @@ const vendors = [
     annualValue: 1500,
     escalation: '5% annual increase per Atlassian standard terms',
     services: [
-      'Confluence Cloud Standard — 20 user licenses',
+      'Confluence Cloud Standard - 20 user licenses',
       'Unlimited spaces and pages',
       'Jira integration for linked requirements',
       'Analytics and page insights',
@@ -336,7 +336,7 @@ const vendors = [
     annualValue: 1800,
     escalation: 'Per-seat pricing; mid-cycle additions prorated',
     services: [
-      'Notion Business — 15 seats',
+      'Notion Business - 15 seats',
       'Unlimited blocks and file uploads',
       'Advanced permissions and page analytics',
       'SAML SSO included',
@@ -366,7 +366,7 @@ const vendors = [
     annualValue: 2400,
     escalation: 'Fixed; renegotiate at renewal for additional seats',
     services: [
-      'Figma Organization — 5 full editor seats',
+      'Figma Organization - 5 full editor seats',
       'Unlimited viewer-only seats',
       'Org-wide libraries and design systems',
       'Branch and merge version controls',
@@ -387,7 +387,7 @@ const vendors = [
     contactEmail: 'enterprise@adobe.com',
     department: 'Marketing',
     category: 'Design Tools',
-    contractType: 'VIP Licensing Agreement — Creative Cloud for Teams',
+    contractType: 'VIP Licensing Agreement - Creative Cloud for Teams',
     description: 'Creative Suite Licensing for Marketing Team',
     effectiveDate: 'January 01, 2025',
     renewalDate: 'August 31, 2025',
@@ -397,7 +397,7 @@ const vendors = [
     annualValue: 5600,
     escalation: '3% annual increase; VIP pricing tier maintained',
     services: [
-      'Creative Cloud for Teams — 8 named user licenses (all apps)',
+      'Creative Cloud for Teams - 8 named user licenses (all apps)',
       'Photoshop, Illustrator, Premiere Pro, After Effects',
       '100 GB cloud storage per user',
       'Adobe Fonts and Stock trial credits',
@@ -417,7 +417,7 @@ const vendors = [
     contactEmail: 'support@stripe.com',
     department: 'Finance',
     category: 'Payments',
-    contractType: 'Master Services Agreement — Payment Processing',
+    contractType: 'Master Services Agreement - Payment Processing',
     description: 'Payment Processing & Revenue Optimisation Platform',
     effectiveDate: 'April 01, 2025',
     renewalDate: 'March 31, 2026',
@@ -427,7 +427,7 @@ const vendors = [
     annualValue: 8200,
     escalation: 'Transaction-based; 2.9% + $0.30 per card transaction (negotiated)',
     services: [
-      'Stripe Payments — negotiated rate: 2.9% + $0.30/transaction',
+      'Stripe Payments - negotiated rate: 2.9% + $0.30/transaction',
       'Stripe Radar fraud protection included',
       'Stripe Billing for subscription management',
       'Instant payouts at 1% fee',
@@ -448,7 +448,7 @@ const vendors = [
     contactEmail: 'billing@twilio.com',
     department: 'Engineering',
     category: 'Communications API',
-    contractType: 'Committed Use Agreement — Messaging & Voice API',
+    contractType: 'Committed Use Agreement - Messaging & Voice API',
     description: 'SMS, MMS & Voice API Services',
     effectiveDate: 'January 01, 2025',
     renewalDate: 'December 31, 2025',
@@ -488,7 +488,7 @@ const vendors = [
     annualValue: 14500,
     escalation: 'Capacity-based; $14,500 credit commitment with 10% rollover',
     services: [
-      'Snowflake Enterprise Edition — $14,500 credit commitment',
+      'Snowflake Enterprise Edition - $14,500 credit commitment',
       '10% unused credit rollover to next year',
       'Multi-cluster virtual warehouses',
       '90-day Time Travel and Fail-safe',
@@ -519,7 +519,7 @@ const vendors = [
     annualValue: 6800,
     escalation: '5% annual increase; host-count reviewed at renewal',
     services: [
-      'Infrastructure Monitoring — up to 50 hosts',
+      'Infrastructure Monitoring - up to 50 hosts',
       'APM and distributed tracing included',
       'Log Management: 30-day retention, 100 GB/day',
       'Synthetic monitoring: 10,000 test runs/month',
@@ -550,7 +550,7 @@ const vendors = [
     annualValue: 2200,
     escalation: 'Per-user pricing; $2,200 locked for 2 years',
     services: [
-      'PagerDuty Business — 20 full user licenses',
+      'PagerDuty Business - 20 full user licenses',
       'Unlimited schedules and escalation policies',
       'Datadog, GitHub, and Slack integrations',
       'Advanced analytics and postmortem tools',
@@ -580,7 +580,7 @@ const vendors = [
     annualValue: 7500,
     escalation: '4% annual increase; MFA add-on priced per user',
     services: [
-      'Okta SSO — up to 200 users',
+      'Okta SSO - up to 200 users',
       'Adaptive Multi-Factor Authentication (MFA)',
       'Universal Directory with HR sync (Rippling)',
       'Lifecycle Management: automated provisioning',
@@ -610,7 +610,7 @@ const vendors = [
     annualValue: 1600,
     escalation: 'Per-seat pricing; billed annually',
     services: [
-      '1Password Teams — all employees',
+      '1Password Teams - all employees',
       'Unlimited password storage',
       'Admin console with role-based access',
       'Advanced audit log (1-year retention)',
@@ -641,7 +641,7 @@ const vendors = [
     annualValue: 4200,
     escalation: 'Seat + resolution-based; $4,200 base commitment',
     services: [
-      'Intercom Support — 5 seat licenses',
+      'Intercom Support - 5 seat licenses',
       'Live chat and in-app messaging',
       'AI chatbot (Fin) for tier-1 deflection',
       'Shared team inbox with SLA tracking',
@@ -672,7 +672,7 @@ const vendors = [
     annualValue: 3800,
     escalation: '5% annual increase; agent count reviewed at renewal',
     services: [
-      'Zendesk Suite Professional — 10 agent licenses',
+      'Zendesk Suite Professional - 10 agent licenses',
       'Email, chat, and social media channels',
       'Custom SLA policies and CSAT surveys',
       'Advanced analytics and dashboards',
@@ -703,7 +703,7 @@ const vendors = [
     annualValue: 5500,
     escalation: 'Fixed annual fee; priced per employee headcount band',
     services: [
-      'Greenhouse ATS — unlimited job postings and candidates',
+      'Greenhouse ATS - unlimited job postings and candidates',
       'Structured interview kits and scorecards',
       'LinkedIn and Indeed integrations',
       'Rippling HRIS integration for onboarding',

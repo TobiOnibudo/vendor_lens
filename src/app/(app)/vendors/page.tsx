@@ -327,7 +327,7 @@ export default function VendorsPage() {
     <>
       <Header
         title="Vendors"
-        description={`${vendors.length} active vendors — ${formatCurrency(totalSpend)} total spend`}
+        description={`${vendors.length} active vendors - ${formatCurrency(totalSpend)} total spend`}
       />
 
       <div className="p-6 space-y-4">
@@ -438,7 +438,7 @@ export default function VendorsPage() {
                           {vendor.category ? (
                             <Badge variant="secondary">{vendor.category}</Badge>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-slate-400">-</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -449,7 +449,7 @@ export default function VendorsPage() {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-slate-400">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right font-semibold">

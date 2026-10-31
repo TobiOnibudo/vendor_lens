@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let uploaderName: string | null = null;
     if (user) {
       uploaderId = user.id;
-      // Ensure a profile row exists — the signup trigger may not have fired
+      // Ensure a profile row exists; the signup trigger may not have fired.
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name")
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       if (profile) {
         uploaderName = profile.full_name || user.email || null;
       } else {
-        // Profile missing — create it now so the FK on vendors.owner_id is satisfied
+        // Profile missing: create it now so the FK on vendors.owner_id is satisfied.
         const fallbackName =
           (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "Unknown";
         await supabase.from("profiles").upsert(
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
             .update({ aliases: mergedAliases })
             .eq("id", vendor.id);
           if (aliasError) {
-            // PGRST204 means the column doesn't exist yet — safe to ignore until migrated
+            // PGRST204 means the column doesn't exist yet; safe to ignore until migrated.
             if (aliasError.code !== "PGRST204") {
               console.error(`[vendors/upload] Failed to save aliases for "${name}":`, aliasError.message);
             }
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
             annual_spend: data.total,
           });
         } catch {
-          // Embedding generation failed — non-critical
+          // Embedding generation failed; non-critical.
         }
       }
     }

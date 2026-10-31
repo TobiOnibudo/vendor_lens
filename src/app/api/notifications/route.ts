@@ -47,7 +47,7 @@ export async function GET() {
           id: `renewal-${c.id}`,
           type: "renewal",
           title: `${vendorName} contract renews soon`,
-          body: `${c.auto_renew ? "Auto-renews" : "Renews"} in ${daysLeft} day${daysLeft !== 1 ? "s" : ""} — review before it locks in.`,
+          body: `${c.auto_renew ? "Auto-renews" : "Renews"} in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}; review before it locks in.`,
           time: renewalDate.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
@@ -72,7 +72,7 @@ export async function GET() {
           id: `dup-${d.id}`,
           type: "warning",
           title: "Duplicate tools detected",
-          body: `${names} may overlap${d.total_combined_spend ? ` — $${Number(d.total_combined_spend).toLocaleString()} combined spend` : ""}.`,
+          body: `${names} may overlap${d.total_combined_spend ? `; $${Number(d.total_combined_spend).toLocaleString()} combined spend` : ""}.`,
           time: new Date(d.created_at).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",

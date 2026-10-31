@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         fileUrl = urlData.publicUrl;
       }
     } catch {
-      // Storage upload failed — continue without file URL
+      // Storage upload failed; continue without file URL.
     }
 
     const arrayBuffer = await file.arrayBuffer();

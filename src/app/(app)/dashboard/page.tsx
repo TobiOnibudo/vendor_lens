@@ -105,7 +105,7 @@ export default function DashboardPage() {
       setTopVendors(vendors.sort((a, b) => (b.annual_spend || 0) - (a.annual_spend || 0)).slice(0, 5));
       setDuplicates(dupes.slice(0, 3));
     } catch {
-      // Graceful degradation — show empty state
+      // Graceful degradation: show empty state.
     } finally {
       setLoading(false);
     }

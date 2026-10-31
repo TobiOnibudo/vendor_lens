@@ -276,7 +276,7 @@ export default function ContractsPage() {
                       </TableCell>
                       <TableCell className="text-sm text-slate-600">{contract.vendor_name}</TableCell>
                       <TableCell className="font-medium text-sm text-slate-800">
-                        {contract.contract_value ? formatCurrency(contract.contract_value) : "—"}
+                        {contract.contract_value ? formatCurrency(contract.contract_value) : "-"}
                       </TableCell>
                       <TableCell>
                         {contract.renewal_date ? (
@@ -289,7 +289,7 @@ export default function ContractsPage() {
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-300">-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -298,7 +298,7 @@ export default function ContractsPage() {
                         ) : contract.auto_renew === false ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700">No</span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-300">-</span>
                         )}
                       </TableCell>
                       <TableCell>

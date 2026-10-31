@@ -2,16 +2,16 @@
 
 VendorLens gives organizations a single place to see what software they're paying for, when contracts renew, and where money is being wasted.
 
-Most companies don't have a vendor problem — they have a **visibility problem**. Spend lives in spreadsheets, contracts sit in inboxes, and different teams buy overlapping tools without knowing. VendorLens is an AI visibility layer on top of that mess: it surfaces insights so finance and ops teams can act, without replacing your ERP or procurement systems.
+Most companies don't have a vendor problem; they have a **visibility problem**. Spend lives in spreadsheets, contracts sit in inboxes, and different teams buy overlapping tools without knowing. VendorLens is an AI visibility layer on top of that mess: it surfaces insights so finance and ops teams can act, without replacing your ERP or procurement systems.
 
 ## What it does
 
-- **Vendor registry** — upload a CSV of spend; AI merges duplicate vendor names ("MSFT", "Microsoft Corp" → one record)
-- **Contract intelligence** — upload PDFs; AI extracts renewal dates, auto-renew clauses, and key terms for human review
-- **Renewal tracking** — dashboard flags contracts expiring in 30/60/90 days
-- **Duplicate detection** — finds overlapping tools across departments and estimates consolidation savings
-- **AI search** — ask plain-language questions like *"When does Slack renew?"* or *"Do we already pay for a CRM?"*
-- **Access requests** — employees request tool access; owners approve in-app or via Slack
+- **Vendor registry:** upload a CSV of spend; AI merges duplicate vendor names ("MSFT", "Microsoft Corp" → one record)
+- **Contract intelligence:** upload PDFs; AI extracts renewal dates, auto-renew clauses, and key terms for human review
+- **Renewal tracking:** dashboard flags contracts expiring in 30/60/90 days
+- **Duplicate detection:** finds overlapping tools across departments and estimates consolidation savings
+- **AI search:** ask plain-language questions like *"When does Slack renew?"* or *"Do we already pay for a CRM?"*
+- **Access requests:** employees request tool access; owners approve in-app or via Slack
 
 AI suggests; humans confirm. Extracted contract fields stay pending until someone reviews them.
 
@@ -52,9 +52,9 @@ Copy `.env` → `.env.local`. Never commit `.env.local`.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes |
 | `OPENAI_API_KEY` | Yes |
-| `OPENAI_MODEL` | No — defaults to `gpt-4.1-mini` |
+| `OPENAI_MODEL` | No; defaults to `gpt-4.1-mini` |
 | `APP_URL` | Yes (`http://localhost:5173` locally) |
-| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | No — access-request DMs |
+| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | No; access-request DMs |
 
 ---
 

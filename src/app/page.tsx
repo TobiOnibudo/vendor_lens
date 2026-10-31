@@ -22,7 +22,7 @@ const features = [
     icon: FileText,
     title: "Contract Intelligence",
     description:
-      "Drop in a contract PDF. AI reads it and pulls out the renewal date, auto-renew clause, notice period, and price escalation terms — no manual parsing.",
+      "Drop in a contract PDF. AI reads it and pulls out the renewal date, auto-renew clause, notice period, and price escalation terms without manual parsing.",
   },
   {
     icon: Copy,
@@ -49,7 +49,7 @@ const steps = [
     icon: FileText,
     step: "2",
     title: "Attach contracts",
-    description: "Upload PDFs for each vendor. Key terms are extracted and stored — renewal dates, notice windows, pricing clauses.",
+    description: "Upload PDFs for each vendor. Key terms are extracted and stored: renewal dates, notice windows, and pricing clauses.",
   },
   {
     icon: Bell,
@@ -100,7 +100,7 @@ export default function LandingPage() {
           </h1>
           <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
             VendorLens pulls your vendor relationships, contracts, and renewal dates into one
-            place — and uses AI to surface what actually matters before it&apos;s too late.
+            place and uses AI to surface what actually matters before it&apos;s too late.
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/login">

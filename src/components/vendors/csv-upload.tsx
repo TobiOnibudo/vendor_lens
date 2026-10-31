@@ -253,7 +253,7 @@ export function CsvUpload({ onComplete }: { onComplete: () => void }) {
                     }))
                   }
                 >
-                  <option value="">— Select column —</option>
+                  <option value="">Select column</option>
                   {headers.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -312,7 +312,7 @@ export function CsvUpload({ onComplete }: { onComplete: () => void }) {
                       <Badge variant="secondary">{row.department}</Badge>
                     </TableCell>
                     <TableCell className="text-slate-500">
-                      {row.category || "—"}
+                      {row.category || "-"}
                     </TableCell>
                   </TableRow>
                 ))}
