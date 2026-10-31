@@ -32,6 +32,8 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname === "/login";
   const isPublicPage =
     request.nextUrl.pathname === "/" ||
+    request.nextUrl.pathname === "/forgot-password" ||
+    request.nextUrl.pathname === "/reset-password" ||
     request.nextUrl.pathname.startsWith("/api");
 
   // Redirect unauthenticated users to login (except public pages)

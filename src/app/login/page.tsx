@@ -27,7 +27,7 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
           },
         });
         if (error) throw error;
@@ -51,11 +51,10 @@ export default function LoginPage() {
   const handleOAuth = async (provider: "google" | "azure") => {
     try {
       const supabase = createClient();
-      // #TODO: Configure Google and Microsoft OAuth providers in Supabase Dashboard
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider === "azure" ? "azure" : "google",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
         },
       });
       if (error) throw error;
@@ -207,6 +206,13 @@ export default function LoginPage() {
               {isSignUp ? "Sign in" : "Sign up"}
             </button>
           </p>
+          {!isSignUp && (
+            <p className="text-center text-sm text-slate-500 mt-3">
+              <Link href="/forgot-password" className="text-slate-900 font-medium hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>
