@@ -18,11 +18,7 @@ export function isSlackConfigured(): boolean {
 }
 
 export function getAppUrl(): string {
-  return (
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:5173"
-  );
+  return process.env.APP_URL || "http://localhost:5173";
 }
 
 async function slackFetch<T extends SlackApiResponse>(

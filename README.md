@@ -53,7 +53,7 @@ Copy `.env` → `.env.local`. Never commit `.env.local`.
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes |
 | `OPENAI_API_KEY` | Yes |
 | `OPENAI_MODEL` | No — defaults to `gpt-4.1-mini` |
-| `NEXT_PUBLIC_APP_URL` / `APP_URL` | Yes (`http://localhost:5173` locally) |
+| `APP_URL` | Yes (`http://localhost:5173` locally) |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | No — access-request DMs |
 
 ---
@@ -72,8 +72,8 @@ Import the repository into Vercel as a Next.js project. Leave the build command 
 `npm run build`; no output-directory override is required. Add every required value
 from `.env.example` in **Vercel → Project → Settings → Environment Variables**.
 
-Set both `NEXT_PUBLIC_APP_URL` and `APP_URL` to your production URL. In Supabase
-Auth URL Configuration, set that same URL as the Site URL and add
+Set `APP_URL` to your production URL. In Supabase Auth URL Configuration, set that
+same URL as the Site URL and add
 `https://<your-domain>/api/auth/callback` as a redirect URL. Create the private
 `contracts` Storage bucket and apply `supabase/schema.sql` plus the migration before
 the first deployment.
