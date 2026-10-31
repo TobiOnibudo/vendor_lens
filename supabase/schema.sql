@@ -37,10 +37,14 @@ create policy "Admins can read all profiles" on profiles
   );
 
 -- Auto-create profile on signup
-create or replace function handle_new_user()
-returns trigger as $$
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
-  insert into profiles (id, email, full_name, company_domain)
+  insert into public.profiles (id, email, full_name, company_domain)
   values (
     new.id,
     new.email,
@@ -49,11 +53,11 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute function public.handle_new_user();
 
 -- Vendors
 create table vendors (
