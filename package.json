@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "backfill:knowledge": "tsx scripts/backfill-knowledge-chunks.ts"
+    "backfill:knowledge": "tsx scripts/backfill-knowledge-chunks.ts",
+    "seed:contracts": "tsx scripts/seed-contracts.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.106",
