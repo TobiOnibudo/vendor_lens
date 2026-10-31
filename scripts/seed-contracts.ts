@@ -53,6 +53,14 @@ const contracts: SeedContract[] = [
   { vendor: "Twilio", slug: "twilio-communications", renewalDate: "2027-12-31", value: 3400, autoRenew: false, noticeDays: 30, escalation: "Usage-based; committed spend unlocks volume discounts.", summary: "Messaging and voice API agreement with committed annual spend for Engineering.", keyTerms: ["Manual renewal required", "Annual spend commitment", "24/7 support"] },
 ];
 
+function fileName(contract: SeedContract) {
+  return `${contract.slug}.pdf`;
+}
+
+function legacyFileName(contract: SeedContract) {
+  return `seed-2026-${contract.slug}.pdf`;
+}
+
 async function main() {
   const { data: vendors, error: vendorError } = await supabase
     .from("vendors")
@@ -60,7 +68,10 @@ async function main() {
   if (vendorError) throw vendorError;
 
   const vendorIds = new Map((vendors ?? []).map((vendor) => [vendor.name, vendor.id]));
-  const fileNames = contracts.map((contract) => `seed-2026-${contract.slug}.pdf`);
+  const fileNames = contracts.flatMap((contract) => [
+    fileName(contract),
+    legacyFileName(contract),
+  ]);
   const { data: existing, error: existingError } = await supabase
     .from("contracts")
     .select("file_name")
@@ -69,14 +80,18 @@ async function main() {
 
   const existingNames = new Set((existing ?? []).map((contract) => contract.file_name));
   const rows = contracts
-    .filter((contract) => !existingNames.has(`seed-2026-${contract.slug}.pdf`))
+    .filter(
+      (contract) =>
+        !existingNames.has(fileName(contract)) &&
+        !existingNames.has(legacyFileName(contract))
+    )
     .map((contract) => {
       const vendorId = vendorIds.get(contract.vendor);
       if (!vendorId) throw new Error(`Missing vendor: ${contract.vendor}`);
 
       return {
         vendor_id: vendorId,
-        file_name: `seed-2026-${contract.slug}.pdf`,
+        file_name: fileName(contract),
         start_date: "2026-01-01",
         renewal_date: contract.renewalDate,
         auto_renew: contract.autoRenew,

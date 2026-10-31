@@ -20,7 +20,7 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
         onClick={() => onOpenChange(false)}
       />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <div className="relative z-50 w-full max-w-lg animate-in zoom-in-95 fade-in duration-200">
+        <div className="relative z-50 w-full max-w-lg max-h-[calc(100vh-2rem)] animate-in zoom-in-95 fade-in duration-200">
           {children}
         </div>
       </div>
@@ -33,7 +33,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
     <div
       ref={ref}
       className={cn(
-        "bg-white rounded-xl shadow-xl border border-slate-200 p-6",
+        "max-h-[calc(100vh-2rem)] overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 p-6 pr-12",
         className
       )}
       {...props}
