@@ -56,6 +56,20 @@ Copy `.env` → `.env.local`. Never commit `.env.local`.
 | `APP_URL` | Yes (`http://localhost:5173` locally) |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | No; access-request DMs |
 
+## Password security
+
+Registration and sign-in use Supabase Auth directly. Passwords travel only over
+HTTPS to the configured Supabase Auth endpoint, and Supabase hashes them before
+storage; VendorLens never writes passwords to its database, user metadata, logs,
+or API routes. Set `NEXT_PUBLIC_SUPABASE_URL` to its `https://` project URL in
+every non-local environment. The login page is also marked no-store so browsers
+and intermediary caches do not retain its response.
+
+It is normal for a password to appear in a browser's own Network inspector:
+the browser must possess it before TLS encrypts the request. Do not add a
+client-side hash or encryption layer to hide it there—this turns the derived
+value into a replayable password and weakens the authentication design.
+
 ---
 
 ## Scripts

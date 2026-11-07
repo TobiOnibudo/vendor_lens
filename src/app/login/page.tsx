@@ -19,13 +19,18 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
+    // Keep a short-lived local reference for the secure Auth call, then clear
+    // React state so the password is not retained in the rendered form.
+    const passwordForAuth = password;
+    setPassword("");
+
     try {
       const supabase = createClient();
 
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email,
-          password,
+          password: passwordForAuth,
           options: {
             emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
           },
@@ -35,7 +40,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
-          password,
+          password: passwordForAuth,
         });
         if (error) throw error;
         router.push("/dashboard");
@@ -105,11 +110,13 @@ export default function LoginPage() {
                 Email
               </label>
               <Input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 required
+                autoComplete="email"
               />
             </div>
             <div>
@@ -117,12 +124,14 @@ export default function LoginPage() {
                 Password
               </label>
               <Input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
                 minLength={6}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
               />
             </div>
             <Button type="submit" className="w-full h-11" disabled={loading}>
